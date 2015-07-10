@@ -111,13 +111,13 @@ public class BigCat
 			final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
 			BigDataViewer.initSetups( spimData, converterSetups, sources );
 
+			sources.add( WaveySource.wrap( sources.get( 0 ), "wavey" ) );
+
 			final Cache cache = imgLoader.getCache();
 			final int width = 800;
 			final int height = 600;
 			final String windowTitle = "bigcat";
 			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, width, height, null );
-
-
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
@@ -125,7 +125,8 @@ public class BigCat
 					-1.141729037412541E-17, 4.313584239818558, 1.0275561336713028E-16, -9482.518144778587,
 					1.1102230246251565E-16, -1.141729037412541E-17, 4.313584239818559, -17181.48737890195 );
 			bdv.getViewer().setCurrentViewerTransform( transform );
-			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+			bdv.getViewer().setDisplayMode( DisplayMode.SINGLE );
+			bdv.getViewer().getVisibilityAndGrouping().setCurrentSource( 2 );
 
 			bdv.getViewerFrame().setVisible( true );
 		}
