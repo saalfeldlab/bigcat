@@ -13,7 +13,10 @@
 
 	<name>BIGCAT</name>
 	<description>Collaborative volume annotation and segmentation with BigDataViewer</description>
-	<properties><scijava.jvm.version>1.8</scijava.jvm.version></properties>
+	<properties>
+		<scijava.jvm.version>1.8</scijava.jvm.version>
+		<enforcer.skip>true</enforcer.skip>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -78,17 +81,17 @@
 		<url>https://github.com/saalfeldlab/bigcat</url>
 	</scm>
 
-	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>enforce-rules</id>
-						<phase>none</phase>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+<!-- 	<build> -->
+<!-- 		<plugins> -->
+<!-- 			<plugin> -->
+<!-- 				<artifactId>maven-enforcer-plugin</artifactId> -->
+<!-- 				<executions> -->
+<!-- 					<execution> -->
+<!-- 						<id>enforce-rules</id> -->
+<!-- 						<phase>none</phase> -->
+<!-- 					</execution> -->
+<!-- 				</executions> -->
+<!-- 			</plugin> -->
+<!-- 		</plugins> -->
+<!-- 	</build> -->
 </project>
