@@ -59,7 +59,8 @@ public class BigCat
 		final Server server = new Server( url );
 		final Repository repo = new Repository( server, uuid );
 
-		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
+//		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
+		final DatasetKeyValue[] stores = new DatasetKeyValue[ 0 ];
 
 		for ( int i = 0; i < stores.length; ++i )
 		{
@@ -76,11 +77,12 @@ public class BigCat
 		}
 
 		final double[][] resolutions = new double[][]{
-				{ 1, 1, 1 },
-				{ 2, 2, 2 },
-				{ 4, 4, 4 },
-				{ 8, 8, 8 },
-				{16, 16, 16 } };
+				{ 1, 1, 1 } };
+//				{ 1, 1, 1 },
+//				{ 2, 2, 2 },
+//				{ 4, 4, 4 },
+//				{ 8, 8, 8 },
+//				{16, 16, 16 } };
 
 		try
 		{
