@@ -218,7 +218,7 @@ public class BigCatAnnotations
 
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
-		while ( true ) {
+		while (bdv.getViewer().isValid()) {
 
 			annotationController.changeCommentOfCurrentSelection();
 			try {
