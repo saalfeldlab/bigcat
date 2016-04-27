@@ -1,6 +1,7 @@
 package bdv.bigcat.annotation;
 
 import java.beans.MethodDescriptor;
+import java.util.HashMap;
 
 import bdv.util.IdService;
 import ch.systemsx.cisd.base.mdarray.MDFloatArray;
@@ -15,55 +16,144 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	
 	private String filename;
 	private String groupname;
+	private String fileFormat;
 	
+	/**
+	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the group "/annotations".
+	 * @param filename
+	 */
+	public AnnotationsHdf5Store(String filename) {
+
+		this(filename, "/annotations");
+	}
+	
+	/**
+	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the given group.
+	 * @param filename
+	 * @param groupname
+	 */
 	public AnnotationsHdf5Store(String filename, String groupname) {
 		
 		this.filename = filename;
 		this.groupname = groupname;
+		
+		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
+		// TODO: following call is deprecated, but what to use instead?
+		if (reader.hasAttribute("/", "file_format")) {
+			fileFormat = reader.string().getAttr("/", "file_format");
+		} else {
+			fileFormat = "0.0";
+		}
+		reader.close();
+		
+		System.out.println("AnnotationsHdf5Store: detected file format " + fileFormat);
+	}
+	
+	class AnnotationFactory {
+		public Annotation create(long id, RealPoint pos, String comment, String type) throws Exception {
+			switch (type) {
+			case "synapse":
+				return new Synapse(id, pos, comment);
+			case "presynaptic_site":
+				return new PreSynapticSite(id, pos, comment);
+			case "postsynaptic_site":
+				return new PostSynapticSite(id, pos, comment);
+			default:
+				throw new Exception("annotation type " + type + " is unknown");
+			}
+		}
 	}
 
 	@Override
-	public Annotations read() {
+	public Annotations read() throws Exception {
 		
 		Annotations annotations = new Annotations();
 	
 		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
-		readSynapses(annotations, reader);
-		readPreSynapticSites(annotations, reader);
-		readPostSynapticSites(annotations, reader);
+		final AnnotationFactory factory = new AnnotationFactory();
+		
+		if (fileFormat.equals("0.0")) {
+
+			readAnnotations(annotations, reader, "synapse", factory);
+			readAnnotations(annotations, reader, "presynaptic_site", factory);
+			readAnnotations(annotations, reader, "postsynaptic_site", factory);
+			readPrePostPartners(annotations, reader);
+
+		} else if (fileFormat.equals("0.1")) {
+
+			readAnnotations(annotations, reader, "all", factory);
+			readPrePostPartners(annotations, reader);
+			
+		} else {
+			
+			throw new Exception("unsupported file format: " + fileFormat + ". Is your bigcat up-to-date?");
+		}
 		reader.close();
 		
 		return annotations;
 	}
-	
-	interface AnnotationFactory {
-		Annotation create(long id, RealPoint pos, String comment);
-	}
 
-	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String name, AnnotationFactory factory) {
+	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String type, AnnotationFactory factory) throws Exception {
+		
+		String locationsDataset;
+		String idsDataset;
+		String typesDataset;
+		String commentsDataset;
+		String commentTargetsDataset;
+		
+		if (fileFormat.equals("0.0")) {
+			locationsDataset = type + "_locations";
+			idsDataset = type + "_ids";
+			typesDataset = null;
+			commentsDataset = type + "_comments";
+			commentTargetsDataset = null;
+		} else if (fileFormat.equals("0.1")) {
+			locationsDataset = "locations";
+			idsDataset = "ids";
+			typesDataset = "types";
+			commentsDataset = "comments/comments";
+			commentTargetsDataset = "comments/target_ids";
+		} else {
+			return;
+		}
 		
 		final MDFloatArray locations;
 		final MDLongArray ids;
-		String[] comments;
+		final String[] types;
+		final HashMap<Long, String> comments = new HashMap<Long, String>();
 
 		try {
-			locations = reader.float32().readMDArray(groupname + "/" + name + "_locations");
-			ids = reader.uint64().readMDArray(groupname + "/" + name + "_ids");
+			locations = reader.float32().readMDArray(groupname + "/" + locationsDataset);
+			ids = reader.uint64().readMDArray(groupname + "/" + idsDataset);
+			if (typesDataset != null)
+				types = reader.string().readArray(groupname + "/" + typesDataset);
+			else
+				types = null;
 		} catch (HDF5SymbolTableException e) {
-			System.out.println("HDF5 file does not contain annotations for " + name);
+			if (type.equals("all"))
+				System.out.println("HDF5 file does not contain (valid) annotations");
+			else
+				System.out.println("HDF5 file does not contain (valid) annotations for " + type);
 			return;
 		}
 			
-		final int[] dims = locations.dimensions();
+		final int numAnnotations = locations.dimensions()[0];
 		
 		try {
-			comments = reader.string().readArray(groupname + "/" + name + "_comments");
+			final String[] commentList = reader.string().readArray(groupname + "/" + commentsDataset);
+			if (fileFormat.equals("0.0"))
+				for (int i = 0; i < numAnnotations; i++)
+					comments.put(ids.get(i), commentList[i]);
+			else if (fileFormat.equals("0.1")) {
+				final MDLongArray commentTargets = reader.uint64().readMDArray(groupname + "/" + commentTargetsDataset);
+				for (int i = 0; i < commentList.length; i++)
+					comments.put(commentTargets.get(i), commentList[i]);
+			}
 		} catch (HDF5SymbolTableException e) {
-			System.out.println("HDF5 file does not contain comments for " + name);
-			comments = null;
+			System.out.println("HDF5 file does not contain comments for " + type);
 		}
 		
-		for (int i = 0; i < dims[0]; i++) {
+		for (int i = 0; i < numAnnotations; i++) {
 			
 			float p[] = {
 				locations.get(i, 0),
@@ -74,49 +164,27 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			pos.setPosition(p);
 			
 			long id = ids.get(i);
-			String comment = (comments == null || comments.length == 0 ? "" : comments[i]);
+			String comment = (comments.containsKey(id) ? comments.get(id) : "");
 			IdService.invalidate(id);
-			Annotation annotation = factory.create(id, pos, comment);
+			Annotation annotation = factory.create(id, pos, comment, (types == null ? type : types[i]));
 			annotations.add(annotation);
 		}
 	}
 
-	private void readSynapses(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new Synapse(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "synapse", new Factory());
-	}
+	private void readPrePostPartners(Annotations annotations, final IHDF5Reader reader) {
 
-	private void readPreSynapticSites(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new PreSynapticSite(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "presynaptic_site", new Factory());
-	}
-
-	private void readPostSynapticSites(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new PostSynapticSite(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "postsynaptic_site", new Factory());
-		
+		final String prePostDataset;
 		final MDLongArray prePostPartners;
 		
+		if (fileFormat.equals("0.0"))
+			prePostDataset = "pre_post_partners";
+		else if (fileFormat.equals("0.1"))
+			prePostDataset = "presynaptic_site/partners";
+		else
+			return;
+		
 		try {
-			prePostPartners = reader.uint64().readMDArray(groupname + "/pre_post_partners");
+			prePostPartners = reader.uint64().readMDArray(groupname + "/" + prePostDataset);
 		} catch (HDF5SymbolTableException e) {
 			return;
 		}
@@ -137,49 +205,51 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 
 		final IHDF5Writer writer = HDF5Factory.open(filename);
 		
-		class AnnotationsCounter extends AnnotationVisitor {
+		final int numAnnotations = annotations.getAnnotations().size();
+		
+		class Counter extends AnnotationVisitor {
 			
-			public int numSynapses = 0;
-			public int numPreSynapticSites = 0;
-			public int numPostSynapticSites = 0;
+			public int numComments = 0;
+			public int numPartners = 0;
+			
+			@Override
+			public void visit(Annotation annotation) {
+				if (annotation.getComment() != null && !annotation.getComment().isEmpty())
+					numComments++;
+			}
 			
 			@Override
 			public void visit(Synapse synapse) {
-				numSynapses++;
 			}
 
 			@Override
 			public void visit(PreSynapticSite preSynapticSite) {
-				numPreSynapticSites++;
+				if (preSynapticSite.getPartner() != null)
+					numPartners++;
 			}
 
 			@Override
 			public void visit(PostSynapticSite postSynapticSite) {
-				numPostSynapticSites++;
 			}
 		}
 
-		final AnnotationsCounter counter = new AnnotationsCounter();
+		final Counter counter = new Counter();
 		for (Annotation a : annotations.getAnnotations())
 			a.accept(counter);
 		
 		class AnnotationsCrawler extends AnnotationVisitor {
 			
-			float[][] synapseData = new float[counter.numSynapses][3];
-			long[] synapseIds = new long[counter.numSynapses];
-			float[][] preSynapticSiteData = new float[counter.numPreSynapticSites][3];
-			long[] preSynapticSiteIds = new long[counter.numPreSynapticSites];
-			float[][] postSynapticSiteData = new float[counter.numPostSynapticSites][3];
-			long[] postSynapticSiteIds = new long[counter.numPostSynapticSites];
-			long[][] partners  = new long[counter.numPostSynapticSites][2];
-
-			String[] synapseComments = new String[counter.numSynapses];
-			String[] preSynapticSiteComments = new String[counter.numPreSynapticSites];
-			String[] postSynapticSiteComments = new String[counter.numPostSynapticSites];
+			float[][] locations = new float[numAnnotations][3];
+			long[] ids = new long[numAnnotations];
+			String[] types = new String[numAnnotations];
+			String[] comments = new String[counter.numComments];
+			long[] commentTargets = new long[counter.numComments];
+			long[][] partners  = new long[counter.numPartners][2];
 			
-			private int synapseIndex = 0;
-			private int preIndex = 0;
-			private int postIndex = 0;
+			private int annotationIndex = 0;
+			private int typeIndex = 0;
+			private int commentIndex = 0;
+			private int partnerIndex = 0;
 			
 			private void fillPosition(float[] data, Annotation a) {
 				
@@ -188,29 +258,38 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			}
 			
 			@Override
+			public void visit(Annotation annotation) {
+				fillPosition(locations[annotationIndex], annotation);
+				ids[annotationIndex] = annotation.getId();
+				if (annotation.getComment() != null && !annotation.getComment().isEmpty()) {
+					comments[commentIndex] = annotation.getComment();
+					commentTargets[commentIndex] = annotation.getId();
+					commentIndex++;
+				}
+				annotationIndex++;
+			}
+			
+			@Override
 			public void visit(Synapse synapse) {
-				fillPosition(synapseData[synapseIndex], synapse);
-				synapseIds[synapseIndex] = synapse.getId();
-				synapseComments[synapseIndex] = synapse.getComment();
-				synapseIndex++;
+				types[typeIndex] = "synapse";
+				typeIndex++;
 			}
 
 			@Override
 			public void visit(PreSynapticSite preSynapticSite) {
-				fillPosition(preSynapticSiteData[preIndex], preSynapticSite);
-				preSynapticSiteIds[preIndex] = preSynapticSite.getId();
-				preSynapticSiteComments[preIndex] = preSynapticSite.getComment();
-				preIndex++;
+				if (preSynapticSite.getPartner() != null) {
+					partners[partnerIndex][0] = preSynapticSite.getId();
+					partners[partnerIndex][1] = preSynapticSite.getPartner().getId();
+					partnerIndex++;
+				}
+				types[typeIndex] = "presynaptic_site";
+				typeIndex++;
 			}
 
 			@Override
 			public void visit(PostSynapticSite postSynapticSite) {
-				fillPosition(postSynapticSiteData[postIndex], postSynapticSite);
-				postSynapticSiteIds[postIndex] = postSynapticSite.getId();
-				postSynapticSiteComments[postIndex] = postSynapticSite.getComment();
-				partners[postIndex][0] = postSynapticSite.getPartner().getId();
-				partners[postIndex][1] = postSynapticSite.getId();
-				postIndex++;
+				types[typeIndex] = "postsynaptic_site";
+				typeIndex++;
 			}
 		}
 		
@@ -218,25 +297,52 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		for (Annotation a : annotations.getAnnotations())
 			a.accept(crawler);
 		
+		// TODO: following calls are deprecated, but what to use instead?
 		try {
 			writer.createGroup(groupname);
 		} catch (HDF5SymbolTableException e) {
-			// nada
+			// already existed
 		}
-		writer.float32().writeMatrix(groupname + "/synapse_locations", crawler.synapseData);
-		writer.uint64().writeArray(groupname + "/synapse_ids", crawler.synapseIds);
-		writer.string().writeArray(groupname + "/synapse_comments", crawler.synapseComments);
+		try {
+			writer.createGroup(groupname + "/comments");
+		} catch (HDF5SymbolTableException e) {
+			// already existed
+		}
+		try {
+			writer.createGroup(groupname + "/presynaptic_site");
+		} catch (HDF5SymbolTableException e) {
+			// already existed
+		}
+		
+		writer.string().setAttr("/", "file_format", "0.1");
+		
+		writer.float32().writeMatrix(groupname + "/locations", crawler.locations);
+		writer.uint64().writeArray(groupname + "/ids", crawler.ids);
+		writer.string().writeArray(groupname + "/types", crawler.types);
 
-		writer.float32().writeMatrix(groupname + "/presynaptic_site_locations", crawler.preSynapticSiteData);
-		writer.uint64().writeArray(groupname + "/presynaptic_site_ids", crawler.preSynapticSiteIds);
-		writer.string().writeArray(groupname + "/presynaptic_site_comments", crawler.preSynapticSiteComments);
+		writer.string().writeArray(groupname + "/comments/comments", crawler.comments);
+		writer.uint64().writeArray(groupname + "/comments/target_ids", crawler.commentTargets);
 
-		writer.float32().writeMatrix(groupname + "/postsynaptic_site_locations", crawler.postSynapticSiteData);
-		writer.uint64().writeArray(groupname + "/postsynaptic_site_ids", crawler.postSynapticSiteIds);
-		writer.string().writeArray(groupname + "/postsynaptic_site_comments", crawler.postSynapticSiteComments);
+		writer.uint64().writeMatrix(groupname + "/presynaptic_site/partners", crawler.partners);
+		
+		// delete old datasets and groups
+		if (fileFormat.equals("0.0")) {
 
-		writer.uint64().writeMatrix(groupname + "/pre_post_partners", crawler.partners);
+			for (String type : new String[]{"synapse", "presynaptic_site", "postsynaptic_site" })
+				for (String ds : new String[]{"locations", "ids", "comments" })
+					deleteDataset(writer, type + "_" + ds);
+			deleteDataset(writer, "pre_post_partners");
+		}
 		
 		writer.close();
+	}
+	
+	private void deleteDataset(IHDF5Writer writer, String name) {
+		final String dsName = groupname + "/" + name;
+		try {
+			writer.delete(dsName);
+		} catch (Exception e) {
+			System.out.println("couldn't delete " + dsName);
+		}
 	}
 }

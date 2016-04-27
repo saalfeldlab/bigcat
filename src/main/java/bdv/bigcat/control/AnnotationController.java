@@ -14,7 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package bdv.bigcat.annotation;
+package bdv.bigcat.control;
 
 import java.awt.event.ActionEvent;
 import java.util.List;
@@ -32,6 +32,12 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import bdv.bigcat.annotation.Annotation;
+import bdv.bigcat.annotation.Annotations;
+import bdv.bigcat.annotation.AnnotationsStore;
+import bdv.bigcat.annotation.PostSynapticSite;
+import bdv.bigcat.annotation.PreSynapticSite;
+import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationOverlay;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
@@ -80,7 +86,7 @@ public class AnnotationController {
 
 	public AnnotationController(final AnnotationsStore annotationsStore, final ViewerPanel viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
-			final KeyStrokeAdder.Factory keyProperties) {
+			final KeyStrokeAdder.Factory keyProperties) throws Exception {
 		this.viewer = viewer;
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
@@ -167,6 +173,9 @@ public class AnnotationController {
 	}
 
 	private abstract class SelfRegisteringAction extends AbstractNamedAction {
+
+		private static final long serialVersionUID = 1L;
+
 		private final String[] defaultTriggers;
 
 		public SelfRegisteringAction(final String name, final String... defaultTriggers) {
@@ -197,6 +206,8 @@ public class AnnotationController {
 	}
 
 	private class RemoveAnnotation extends SelfRegisteringAction {
+
+		private static final long serialVersionUID = 1L;
 
 		public RemoveAnnotation(final String name, final String... defaultTriggers) {
 			super(name, defaultTriggers);
