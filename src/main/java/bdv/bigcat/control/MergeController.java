@@ -214,6 +214,7 @@ public class MergeController
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
+			viewer.showMessage("selected id " + id);
 		}
 	}
 
