@@ -218,63 +218,63 @@ public class BigCatAnnotations
 					new InputTriggerConfig(),
 					bdv.getViewerFrame().getKeybindings(),
 					new InputTriggerConfig() );
-			
-			final LabelBrushController brushController = new LabelBrushController(
-					bdv.getViewer(),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					projectFile,
-					paintedLabelsDataset,
-					cellDimensions,
-					new InputTriggerConfig() );
-
-			final LabelPersistenceController persistenceController = new LabelPersistenceController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					assignment,
-					projectFile,
-					paintedLabelsDataset,
-					mergedLabelsDataset,
-					cellDimensions,
-					new InputTriggerConfig(),
-					bdv.getViewerFrame().getKeybindings() );
-			
-			final LabelFillController fillController = new LabelFillController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					new DiamondShape( 1 ),
-					new InputTriggerConfig() );
-
-			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
-					bdv.getViewer(),
-					fragments.getImage(0),
-					paintedLabels,
-					fragments.getMipmapTransforms()[0],
-					assignment,
-					selectionController,
-					new DiamondShape(1),
-					new InputTriggerConfig());
-	
+//			
+//			final LabelBrushController brushController = new LabelBrushController(
+//					bdv.getViewer(),
+//					paintedLabels,
+//					fragments.getMipmapTransforms()[ 0 ],
+//					assignment,
+//					selectionController,
+//					projectFile,
+//					paintedLabelsDataset,
+//					cellDimensions,
+//					new InputTriggerConfig() );
+//
+//			final LabelPersistenceController persistenceController = new LabelPersistenceController(
+//					bdv.getViewer(),
+//					fragments.getImage( 0 ),
+//					paintedLabels,
+//					assignment,
+//					projectFile,
+//					paintedLabelsDataset,
+//					mergedLabelsDataset,
+//					cellDimensions,
+//					new InputTriggerConfig(),
+//					bdv.getViewerFrame().getKeybindings() );
+//			
+//			final LabelFillController fillController = new LabelFillController(
+//					bdv.getViewer(),
+//					fragments.getImage( 0 ),
+//					paintedLabels,
+//					fragments.getMipmapTransforms()[ 0 ],
+//					assignment,
+//					selectionController,
+//					new DiamondShape( 1 ),
+//					new InputTriggerConfig() );
+//
+//			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+//					bdv.getViewer(),
+//					fragments.getImage(0),
+//					paintedLabels,
+//					fragments.getMipmapTransforms()[0],
+//					assignment,
+//					selectionController,
+//					new DiamondShape(1),
+//					new InputTriggerConfig());
+//	
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
-			bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
-
-			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
-
-			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
-			
-			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+//			bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
+//			bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+//
+//			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
+//			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
+//
+//			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
+//			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
+//			
+//			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
 		}
 		
@@ -284,17 +284,17 @@ public class BigCatAnnotations
 				new  InputTriggerConfig() );
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
-		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
-		final AnnotationsController annotationController = new AnnotationsController(
-				annotationsStore,
-				bdv,
-				new InputTriggerConfig(),
-				bdv.getViewerFrame().getKeybindings(),
-				new InputTriggerConfig() );
-
-		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
-
-		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
+//		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
+//		final AnnotationsController annotationController = new AnnotationsController(
+//				annotationsStore,
+//				bdv,
+//				new InputTriggerConfig(),
+//				bdv.getViewerFrame().getKeybindings(),
+//				new InputTriggerConfig() );
+//
+//		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+//		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+//
+//		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 	}
 }

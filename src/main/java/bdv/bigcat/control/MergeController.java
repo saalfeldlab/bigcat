@@ -150,11 +150,11 @@ public class MergeController
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
 
 		new SelectFragment("select fragment", "button1").register();
-		new NeedMerge("need merge", "shift button1").register();
-		new NeedSplit("need split", "control button1").register();
-		new NeedPaint("need paint", "control shift button1").register();
-		new NeedGeneralAction("need general action", "SPACE button1").register();
-		new ExportActions("export assignments", "E").register();
+//		new NeedMerge("need merge", "shift button1").register();
+//		new NeedSplit("need split", "control button1").register();
+//		new NeedPaint("need paint", "control shift button1").register();
+//		new NeedGeneralAction("need general action", "SPACE button1").register();
+//		new ExportActions("export assignments", "E").register();
 
 		inputActionBindings.addActionMap( "merge", ksActionMap );
 		inputActionBindings.addInputMap( "merge", ksInputMap );
