@@ -52,9 +52,9 @@ public class TranslateZController
 		double max = Math.max(Math.max(resolution[0], resolution[1]), resolution[2]);
 		double f = max/min;
 
-		new FixDistanceTranslateZ( max, "scroll browse z fast", "shift scroll" ).register();
-		new FixDistanceTranslateZ( min, "scroll browse z", "scroll" ).register();
-		new FixDistanceTranslateZ( min/f, "scroll browse z slow", "ctrl scroll" ).register();
+		new FixDistanceTranslateZ( max*f, "scroll browse z fast", "shift scroll" ).register();
+		new FixDistanceTranslateZ( max, "scroll browse z", "scroll" ).register();
+		new FixDistanceTranslateZ( min, "scroll browse z slow", "ctrl scroll" ).register();
 	}
 
 	public BehaviourMap getBehaviourMap()
