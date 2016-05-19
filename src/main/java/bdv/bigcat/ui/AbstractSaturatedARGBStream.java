@@ -138,13 +138,13 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 		argbCache.clear();
 	}
 
-	protected final static int hsva2argb(double h, double s, double v, int alpha) {
+	protected final static int hsva2argb(double h, double s, double v, final int alpha) {
 
 		if(s < 0) s = 0;
 		if(s > 1) s = 1;
 		if(v < 0) v = 0;
 		if(v > 1) v = 1;
-		
+
 		int r = 0;
 		int g = 0;
 		int b = 0;
@@ -157,11 +157,11 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 
 		h = h%1.0; // want h to be in 0..1
 
-		int i = (int)(h*6);
-		double f = (h*6) - i;
-		double p = v*(1.0f - s); 
-		double q = v*(1.0f - s*f);
-		double t = v*(1.0f - s*(1.0f-f));
+		final int i = (int)(h*6);
+		final double f = (h*6) - i;
+		final double p = v*(1.0f - s);
+		final double q = v*(1.0f - s*f);
+		final double t = v*(1.0f - s*(1.0f-f));
 		switch(i%6) {
 		case 0:
 			r = (int)(255.0*v);
@@ -197,15 +197,15 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 		return argb(r, g, b, alpha);
 	}
 
-	protected final int id2argb(long l) {
+	protected final int id2argb(final long l) {
 
-		double x = 0.4671057256451202*(l*(l+1))%1.0;
-		double y = 0.6262286337141059*(l*(l+2))%1.0;
-		double z = 0.9424373277692188*(l*(l+3))%1.0;
+		final double x = 0.4671057256451202*(l*(l+1))%1.0;
+		final double y = 0.6262286337141059*(l*(l+2))%1.0;
+		final double z = 0.9424373277692188*(l*(l+3))%1.0;
 
-		double h = x;
-		double s = 0.8 + y*0.2;
-		double v = (l == 0 ? 0.0 : 0.5 + z*0.5);
+		final double h = x;
+		final double s = 0.8 + y*0.2;
+		final double v = (l == 0 ? 0.0 : 0.5 + z*0.5);
 		return hsva2argb(h, s, v, alpha);
 	}
 }
