@@ -13,6 +13,7 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelMultiSetIdPicker;
@@ -196,7 +197,7 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
-		
+
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
 				raw.getMipmapResolutions()[0],
@@ -244,7 +245,7 @@ public class BigCATAriadne
 				new DiamondShape(1),
 				new InputTriggerConfig());
 
-		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+		final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 				bdv,
 				transform,
 				new InputTriggerConfig(),
