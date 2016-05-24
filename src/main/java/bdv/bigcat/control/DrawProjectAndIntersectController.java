@@ -188,7 +188,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
                 null
         );
 
-        System.out.println( Arrays.toString( r ) + Arrays.toString( g ) + Arrays.toString( b ) );
     }
 
 
@@ -244,7 +243,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             filledPixelsOverlay.setVisible( true );
 //            cmObsolete.updateRGB( getColor() );
             updateCM();
-            System.out.println( "Action: " + getColor() );
         }
     }
 
@@ -483,7 +481,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             Ellipse2D e = new Ellipse2D.Double( x - brushOverlay.radius, y - brushOverlay.radius, 2*brushOverlay.radius+1, 2*brushOverlay.radius+1 );
             action( filledPixelsOverlay.img, new Area( e ) );
             filledPixelsOverlay.updateImage();
-            System.out.println( filledPixelsOverlay.img.getRGB( x, y) );
         }
 
         protected void paint( final int x1, final int y1, final int x2, final int y2 )
@@ -495,7 +492,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             final double l = LinAlgHelpers.length( p2 );
             LinAlgHelpers.normalize( p2 );
 
-            System.out.println( x1 + " " + y1 + ", " + x2 + " " + y2 + ", " + l );
             long xOld = Math.round( p1[0] ), yOld = Math.round( p1[1] );
             for ( int i = 1; i < l; ++i )
             {
@@ -716,7 +712,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 
                 final long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
-                System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + getColor().getRGB() );
                 final RandomAccess<LongType> paintedLabelAccess = paintedLabels.randomAccess();
                 paintedLabelAccess.setPosition( p );
                 final long paintedLabel = paintedLabelAccess.get().get();
