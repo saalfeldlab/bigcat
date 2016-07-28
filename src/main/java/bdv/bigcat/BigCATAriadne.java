@@ -53,10 +53,17 @@ import net.imglib2.view.Views;
 
 public class BigCATAriadne
 {
-	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+//<<<<<<< Updated upstream
+//	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
 	final static private double[] resolutions = new double[]{ 10, 1, 1 };
-	final static private String rawDataset = "/em_raw";
-	final static private String backgroundLabelsDataset = "/labels";
+//	final static private String rawDataset = "/em_raw";
+//	final static private String backgroundLabelsDataset = "/labels";
+//=======
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
+	final static private String rawDataset = "/volumes/raw";
+	final static private String backgroundLabelsDataset = "/volumes/labels/neuron_ids";
+//>>>>>>> Stashed changes
+	
 	final static private String paintedLabelsDataset = "/paintedLabels";
 	final static private String mergedLabelsDataset = "/mergedLabels";
 
@@ -152,8 +159,8 @@ public class BigCATAriadne
 				null );
 
 		final AffineTransform3D transform = new AffineTransform3D();
-		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
-		bdv.getViewer().setCurrentViewerTransform( transform );
+//		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
+//		bdv.getViewer().setCurrentViewerTransform( transform );
 
 		bdv.getViewerFrame().setVisible( true );
 
