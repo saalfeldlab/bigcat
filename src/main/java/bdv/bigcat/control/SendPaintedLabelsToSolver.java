@@ -45,7 +45,7 @@ import net.imglib2.view.Views;
  * Persist fragment segment assignments, painted labels, viewer state, and
  * flattened labels.
  *
- * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author Philipp Hanslovsky
  */
 public class SendPaintedLabelsToSolver
 {
