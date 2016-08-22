@@ -5,7 +5,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -17,6 +16,9 @@ import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
@@ -32,6 +34,11 @@ import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.SendPaintedLabelsToSolver;
+import bdv.bigcat.control.SolverMessages;
+import bdv.bigcat.control.SolverMessages.Annotation;
+import bdv.bigcat.control.SolverMessages.Start;
+import bdv.bigcat.control.SolverMessages.Type;
+import bdv.bigcat.control.SolverMessages.Wrapper;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
@@ -383,75 +390,94 @@ public class BigCatBinaryMaskVis
 
 				while ( !Thread.currentThread().isInterrupted() )
 				{
-					final byte[] message = receiver.recv();
-					if ( startedTransmission )
+					Wrapper message = null;
+					try
 					{
-						if ( message.length == STOP_STRING.length() && new String( message ).equals( STOP_STRING ) )
+						message = SolverMessages.Wrapper.parseFrom( receiver.recv() );
+					}
+					catch ( final InvalidProtocolBufferException e )
+					{
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					if ( !( message == null ) )
+					{
+						if ( startedTransmission )
 						{
-							startedTransmission = false;
-							receivedBoundingbox = false;
-							bdv = BdvFunctions.show( img, "mask" );
-
-							bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
-							label = -1;
-//							ImageJFunctions.show( img );
-						}
-						else if ( receivedBoundingbox )
-						{
-							final long[] cellMin = new long[ 3 ];
-							final long[] cellMax = new long[ 3 ];
-
-							final ByteBuffer buf = ByteBuffer.wrap( message );
-
-							for ( final long[] m : new long[][] { cellMin, cellMax } )
+							if ( message.getType() == SolverMessages.Type.STOP )
 							{
+								startedTransmission = false;
+								receivedBoundingbox = false;
+								bdv = BdvFunctions.show( img, "mask" );
+
+								bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
+								label = -1;
+//							ImageJFunctions.show( img );
+							}
+							else if ( message.getType() == SolverMessages.Type.ANNOTATION )
+							{
+
+								final Annotation annotation = message.getAnnotation();
+
+								final long[] cellMin = new long[ 3 ];
+								final long[] cellMax = new long[ 3 ];
+
+//							final ByteBuffer buf = ByteBuffer.wrap( message );
+
+//							for ( final long[] m : new long[][] { cellMin, cellMax } )
+//							{
 								for ( int d = 0; d < 3; ++d )
 								{
-									m[ d ] = buf.getLong();
+									cellMin[ d ] = annotation.getMin( d );
+									cellMax[ d ] = annotation.getMax( d );
 								}
-							}
+//							}
 
-							label = buf.getLong() / 10000;
+								label = annotation.getId() / 10000; // buf.getLong()
+								// / 10000;
 
-							System.out.println( "RECEIVED LABEL: " + label );
+								System.out.println( "RECEIVED LABEL: " + label );
 
-							final RandomAccess< LongType > ra = img.randomAccess();
+								final RandomAccess< LongType > ra = img.randomAccess();
 
-							final byte BYTE_ONE = ( byte ) 1;
+								final byte BYTE_ONE = ( byte ) 1;
 
-							for ( long z = cellMin[ 2 ]; z <= cellMax[ 2 ]; ++z )
-							{
-								ra.setPosition( z, 2 );
-								for ( long y = cellMin[ 1 ]; y <= cellMax[ 1 ]; ++y )
+								final ByteString bs = annotation.getData();
+								int count = 0;
+
+								for ( long z = cellMin[ 2 ]; z <= cellMax[ 2 ]; ++z )
 								{
-									ra.setPosition( y, 1 );
-									for ( long x = cellMin[ 0 ]; x <= cellMax[ 0 ]; ++x )
+									ra.setPosition( z, 2 );
+									for ( long y = cellMin[ 1 ]; y <= cellMax[ 1 ]; ++y )
 									{
-										ra.setPosition( x, 0 );
-										ra.get().set( buf.get() == BYTE_ONE ? label : label - 1 );
+										ra.setPosition( y, 1 );
+										for ( long x = cellMin[ 0 ]; x <= cellMax[ 0 ]; ++x )
+										{
+											ra.setPosition( x, 0 );
+											ra.get().set( bs.byteAt( count++ ) == BYTE_ONE ? label : label - 1 );
 //										if ( buf.get() == BYTE_ONE )
 //										{
 //											ra.get().set( label );
 //										}
-									}
+										}
 
+									}
 								}
+
 							}
 
 						}
-						else
+						else if ( message.getType() == Type.START )
 						{
 							final long[] min = new long[ 3 ];
 							final long[] max = new long[ 3 ];
 
-							final ByteBuffer buf = ByteBuffer.wrap( message );
+							final Start start = message.getStart();
 
-							for ( final long[] m : new long[][] { min, max } )
+							for ( int d = 0; d < 3; ++d )
 							{
-								for ( int d = 0; d < 3; ++d )
-								{
-									m[ d ] = buf.getLong();
-								}
+								min[ d ] = start.getMin( d );
+								max[ d ] = start.getMax( d );
 							}
 
 							final long[] dim = new long[ 3 ];
@@ -471,12 +497,9 @@ public class BigCatBinaryMaskVis
 								bdv.close();
 							}
 							receivedBoundingbox = true;
-						}
 
-					}
-					else if ( message.length == START_STRING.length() && new String( message ).equals( START_STRING ) )
-					{
-						startedTransmission = true;
+							startedTransmission = true;
+						}
 					}
 				}
 			} );
@@ -489,7 +512,7 @@ public class BigCatBinaryMaskVis
 					fragments.getImage( 0 ),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
-					new int[] { 256, 256, 32 },
+					new int[] { 64, 64, 32 },
 					config,
 					socket );
 

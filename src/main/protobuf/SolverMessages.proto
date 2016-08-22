@@ -1,0 +1,41 @@
+package solver;
+
+option java_package = "bdv.bigcat.control";
+option java_outer_classname = "SolverMessages";
+
+message Start {
+  required string uuid = 1;
+  repeated uint64 min = 2 [packed=true];
+  repeated uint64 max = 3 [packed=true];
+  repeated uint64 containedIds = 4 [packed=true];
+  repeated uint64 neighboringIds = 5 [packed=true];
+  repeated uint64 completelyRemovedIds = 6 [packed=true];
+  required uint64 id = 7;
+}
+
+message Annotation {
+  required string uuid = 1;
+  repeated uint64 min = 2 [packed=true];
+  repeated uint64 max = 3 [packed=true];
+  required uint64 id = 4;
+  required bytes data = 5;
+}
+
+message Stop {
+  required string uuid = 1; 
+}
+
+enum Type {
+  START = 0;
+  ANNOTATION = 1;
+  STOP = 2;
+}
+
+message Wrapper {
+  required Type type = 1;
+  oneof msg {
+    Start start = 2;
+    Annotation annotation = 3;
+    Stop stop = 4;
+  }
+}
