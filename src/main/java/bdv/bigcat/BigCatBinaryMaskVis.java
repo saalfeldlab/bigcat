@@ -71,7 +71,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
-public class BigCat
+public class BigCatBinaryMaskVis
 {
 	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 
@@ -93,10 +93,10 @@ public class BigCat
 
 	public static void main( final String[] args ) throws Exception
 	{
-		new BigCat( args );
+		new BigCatBinaryMaskVis( args );
 	}
 
-	public BigCat( final String[] args ) throws Exception
+	public BigCatBinaryMaskVis( final String[] args ) throws Exception
 	{
 		Util.initUI();
 
