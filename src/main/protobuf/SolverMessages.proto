@@ -25,10 +25,22 @@ message Stop {
   required string uuid = 1; 
 }
 
+message Assignment {
+  required uint64 fragmentId = 1;
+  required uint64 segmentId = 2;
+}
+
+message Assignments {
+  required string uuid = 1;
+  required uint64 id = 2;
+  repeated Assignments assignments = 3;
+}
+
 enum Type {
   START = 0;
   ANNOTATION = 1;
   STOP = 2;
+  ASSIGNMENTS = 3;
 }
 
 message Wrapper {
@@ -37,5 +49,6 @@ message Wrapper {
     Start start = 2;
     Annotation annotation = 3;
     Stop stop = 4;
+    Assignments assignments = 5;
   }
 }

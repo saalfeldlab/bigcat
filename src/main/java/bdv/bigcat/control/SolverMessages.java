@@ -25,6 +25,10 @@ public final class SolverMessages {
      * <code>STOP = 2;</code>
      */
     STOP(2, 2),
+    /**
+     * <code>ASSIGNMENTS = 3;</code>
+     */
+    ASSIGNMENTS(3, 3),
     ;
 
     /**
@@ -39,6 +43,10 @@ public final class SolverMessages {
      * <code>STOP = 2;</code>
      */
     public static final int STOP_VALUE = 2;
+    /**
+     * <code>ASSIGNMENTS = 3;</code>
+     */
+    public static final int ASSIGNMENTS_VALUE = 3;
 
 
     public final int getNumber() { return value; }
@@ -48,6 +56,7 @@ public final class SolverMessages {
         case 0: return START;
         case 1: return ANNOTATION;
         case 2: return STOP;
+        case 3: return ASSIGNMENTS;
         default: return null;
       }
     }
@@ -2967,6 +2976,1439 @@ public final class SolverMessages {
     // @@protoc_insertion_point(class_scope:solver.Stop)
   }
 
+  public interface AssignmentOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:solver.Assignment)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>required uint64 fragmentId = 1;</code>
+     */
+    boolean hasFragmentId();
+    /**
+     * <code>required uint64 fragmentId = 1;</code>
+     */
+    long getFragmentId();
+
+    /**
+     * <code>required uint64 segmentId = 2;</code>
+     */
+    boolean hasSegmentId();
+    /**
+     * <code>required uint64 segmentId = 2;</code>
+     */
+    long getSegmentId();
+  }
+  /**
+   * Protobuf type {@code solver.Assignment}
+   */
+  public static final class Assignment extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:solver.Assignment)
+      AssignmentOrBuilder {
+    // Use Assignment.newBuilder() to construct.
+    private Assignment(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+      this.unknownFields = builder.getUnknownFields();
+    }
+    private Assignment(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
+
+    private static final Assignment defaultInstance;
+    public static Assignment getDefaultInstance() {
+      return defaultInstance;
+    }
+
+    public Assignment getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+
+    private final com.google.protobuf.UnknownFieldSet unknownFields;
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+        getUnknownFields() {
+      return this.unknownFields;
+    }
+    private Assignment(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      initFields();
+      int mutable_bitField0_ = 0;
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              fragmentId_ = input.readUInt64();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              segmentId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e.getMessage()).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignment_descriptor;
+    }
+
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignment_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              bdv.bigcat.control.SolverMessages.Assignment.class, bdv.bigcat.control.SolverMessages.Assignment.Builder.class);
+    }
+
+    public static com.google.protobuf.Parser<Assignment> PARSER =
+        new com.google.protobuf.AbstractParser<Assignment>() {
+      public Assignment parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new Assignment(input, extensionRegistry);
+      }
+    };
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<Assignment> getParserForType() {
+      return PARSER;
+    }
+
+    private int bitField0_;
+    public static final int FRAGMENTID_FIELD_NUMBER = 1;
+    private long fragmentId_;
+    /**
+     * <code>required uint64 fragmentId = 1;</code>
+     */
+    public boolean hasFragmentId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    /**
+     * <code>required uint64 fragmentId = 1;</code>
+     */
+    public long getFragmentId() {
+      return fragmentId_;
+    }
+
+    public static final int SEGMENTID_FIELD_NUMBER = 2;
+    private long segmentId_;
+    /**
+     * <code>required uint64 segmentId = 2;</code>
+     */
+    public boolean hasSegmentId() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    /**
+     * <code>required uint64 segmentId = 2;</code>
+     */
+    public long getSegmentId() {
+      return segmentId_;
+    }
+
+    private void initFields() {
+      fragmentId_ = 0L;
+      segmentId_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      if (!hasFragmentId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasSegmentId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, fragmentId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, segmentId_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(1, fragmentId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(2, segmentId_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignment parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(bdv.bigcat.control.SolverMessages.Assignment prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code solver.Assignment}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:solver.Assignment)
+        bdv.bigcat.control.SolverMessages.AssignmentOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignment_descriptor;
+      }
+
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignment_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                bdv.bigcat.control.SolverMessages.Assignment.class, bdv.bigcat.control.SolverMessages.Assignment.Builder.class);
+      }
+
+      // Construct using bdv.bigcat.control.SolverMessages.Assignment.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        }
+      }
+      private static Builder create() {
+        return new Builder();
+      }
+
+      public Builder clear() {
+        super.clear();
+        fragmentId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        segmentId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignment_descriptor;
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignment getDefaultInstanceForType() {
+        return bdv.bigcat.control.SolverMessages.Assignment.getDefaultInstance();
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignment build() {
+        bdv.bigcat.control.SolverMessages.Assignment result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignment buildPartial() {
+        bdv.bigcat.control.SolverMessages.Assignment result = new bdv.bigcat.control.SolverMessages.Assignment(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.fragmentId_ = fragmentId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.segmentId_ = segmentId_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
+      }
+
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof bdv.bigcat.control.SolverMessages.Assignment) {
+          return mergeFrom((bdv.bigcat.control.SolverMessages.Assignment)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(bdv.bigcat.control.SolverMessages.Assignment other) {
+        if (other == bdv.bigcat.control.SolverMessages.Assignment.getDefaultInstance()) return this;
+        if (other.hasFragmentId()) {
+          setFragmentId(other.getFragmentId());
+        }
+        if (other.hasSegmentId()) {
+          setSegmentId(other.getSegmentId());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+
+      public final boolean isInitialized() {
+        if (!hasFragmentId()) {
+          
+          return false;
+        }
+        if (!hasSegmentId()) {
+          
+          return false;
+        }
+        return true;
+      }
+
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        bdv.bigcat.control.SolverMessages.Assignment parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (bdv.bigcat.control.SolverMessages.Assignment) e.getUnfinishedMessage();
+          throw e;
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int bitField0_;
+
+      private long fragmentId_ ;
+      /**
+       * <code>required uint64 fragmentId = 1;</code>
+       */
+      public boolean hasFragmentId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      /**
+       * <code>required uint64 fragmentId = 1;</code>
+       */
+      public long getFragmentId() {
+        return fragmentId_;
+      }
+      /**
+       * <code>required uint64 fragmentId = 1;</code>
+       */
+      public Builder setFragmentId(long value) {
+        bitField0_ |= 0x00000001;
+        fragmentId_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required uint64 fragmentId = 1;</code>
+       */
+      public Builder clearFragmentId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        fragmentId_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      private long segmentId_ ;
+      /**
+       * <code>required uint64 segmentId = 2;</code>
+       */
+      public boolean hasSegmentId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      /**
+       * <code>required uint64 segmentId = 2;</code>
+       */
+      public long getSegmentId() {
+        return segmentId_;
+      }
+      /**
+       * <code>required uint64 segmentId = 2;</code>
+       */
+      public Builder setSegmentId(long value) {
+        bitField0_ |= 0x00000002;
+        segmentId_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required uint64 segmentId = 2;</code>
+       */
+      public Builder clearSegmentId() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        segmentId_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:solver.Assignment)
+    }
+
+    static {
+      defaultInstance = new Assignment(true);
+      defaultInstance.initFields();
+    }
+
+    // @@protoc_insertion_point(class_scope:solver.Assignment)
+  }
+
+  public interface AssignmentsOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:solver.Assignments)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    boolean hasUuid();
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    java.lang.String getUuid();
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    com.google.protobuf.ByteString
+        getUuidBytes();
+
+    /**
+     * <code>required uint64 id = 2;</code>
+     */
+    boolean hasId();
+    /**
+     * <code>required uint64 id = 2;</code>
+     */
+    long getId();
+
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    java.util.List<bdv.bigcat.control.SolverMessages.Assignments> 
+        getAssignmentsList();
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    bdv.bigcat.control.SolverMessages.Assignments getAssignments(int index);
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    int getAssignmentsCount();
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    java.util.List<? extends bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> 
+        getAssignmentsOrBuilderList();
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder(
+        int index);
+  }
+  /**
+   * Protobuf type {@code solver.Assignments}
+   */
+  public static final class Assignments extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:solver.Assignments)
+      AssignmentsOrBuilder {
+    // Use Assignments.newBuilder() to construct.
+    private Assignments(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+      this.unknownFields = builder.getUnknownFields();
+    }
+    private Assignments(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
+
+    private static final Assignments defaultInstance;
+    public static Assignments getDefaultInstance() {
+      return defaultInstance;
+    }
+
+    public Assignments getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+
+    private final com.google.protobuf.UnknownFieldSet unknownFields;
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+        getUnknownFields() {
+      return this.unknownFields;
+    }
+    private Assignments(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      initFields();
+      int mutable_bitField0_ = 0;
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+            case 10: {
+              com.google.protobuf.ByteString bs = input.readBytes();
+              bitField0_ |= 0x00000001;
+              uuid_ = bs;
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              id_ = input.readUInt64();
+              break;
+            }
+            case 26: {
+              if (!((mutable_bitField0_ & 0x00000004) == 0x00000004)) {
+                assignments_ = new java.util.ArrayList<bdv.bigcat.control.SolverMessages.Assignments>();
+                mutable_bitField0_ |= 0x00000004;
+              }
+              assignments_.add(input.readMessage(bdv.bigcat.control.SolverMessages.Assignments.PARSER, extensionRegistry));
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e.getMessage()).setUnfinishedMessage(this);
+      } finally {
+        if (((mutable_bitField0_ & 0x00000004) == 0x00000004)) {
+          assignments_ = java.util.Collections.unmodifiableList(assignments_);
+        }
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignments_descriptor;
+    }
+
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignments_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              bdv.bigcat.control.SolverMessages.Assignments.class, bdv.bigcat.control.SolverMessages.Assignments.Builder.class);
+    }
+
+    public static com.google.protobuf.Parser<Assignments> PARSER =
+        new com.google.protobuf.AbstractParser<Assignments>() {
+      public Assignments parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new Assignments(input, extensionRegistry);
+      }
+    };
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<Assignments> getParserForType() {
+      return PARSER;
+    }
+
+    private int bitField0_;
+    public static final int UUID_FIELD_NUMBER = 1;
+    private java.lang.Object uuid_;
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    public boolean hasUuid() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    public java.lang.String getUuid() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          uuid_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>required string uuid = 1;</code>
+     */
+    public com.google.protobuf.ByteString
+        getUuidBytes() {
+      java.lang.Object ref = uuid_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        uuid_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ID_FIELD_NUMBER = 2;
+    private long id_;
+    /**
+     * <code>required uint64 id = 2;</code>
+     */
+    public boolean hasId() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    /**
+     * <code>required uint64 id = 2;</code>
+     */
+    public long getId() {
+      return id_;
+    }
+
+    public static final int ASSIGNMENTS_FIELD_NUMBER = 3;
+    private java.util.List<bdv.bigcat.control.SolverMessages.Assignments> assignments_;
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    public java.util.List<bdv.bigcat.control.SolverMessages.Assignments> getAssignmentsList() {
+      return assignments_;
+    }
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    public java.util.List<? extends bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> 
+        getAssignmentsOrBuilderList() {
+      return assignments_;
+    }
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    public int getAssignmentsCount() {
+      return assignments_.size();
+    }
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    public bdv.bigcat.control.SolverMessages.Assignments getAssignments(int index) {
+      return assignments_.get(index);
+    }
+    /**
+     * <code>repeated .solver.Assignments assignments = 3;</code>
+     */
+    public bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder(
+        int index) {
+      return assignments_.get(index);
+    }
+
+    private void initFields() {
+      uuid_ = "";
+      id_ = 0L;
+      assignments_ = java.util.Collections.emptyList();
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      if (!hasUuid()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      for (int i = 0; i < getAssignmentsCount(); i++) {
+        if (!getAssignments(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getUuidBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, id_);
+      }
+      for (int i = 0; i < assignments_.size(); i++) {
+        output.writeMessage(3, assignments_.get(i));
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(1, getUuidBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(2, id_);
+      }
+      for (int i = 0; i < assignments_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, assignments_.get(i));
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseDelimitedFrom(input, extensionRegistry);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input);
+    }
+    public static bdv.bigcat.control.SolverMessages.Assignments parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return PARSER.parseFrom(input, extensionRegistry);
+    }
+
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(bdv.bigcat.control.SolverMessages.Assignments prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code solver.Assignments}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:solver.Assignments)
+        bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignments_descriptor;
+      }
+
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignments_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                bdv.bigcat.control.SolverMessages.Assignments.class, bdv.bigcat.control.SolverMessages.Assignments.Builder.class);
+      }
+
+      // Construct using bdv.bigcat.control.SolverMessages.Assignments.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+          getAssignmentsFieldBuilder();
+        }
+      }
+      private static Builder create() {
+        return new Builder();
+      }
+
+      public Builder clear() {
+        super.clear();
+        uuid_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        id_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        if (assignmentsBuilder_ == null) {
+          assignments_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000004);
+        } else {
+          assignmentsBuilder_.clear();
+        }
+        return this;
+      }
+
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return bdv.bigcat.control.SolverMessages.internal_static_solver_Assignments_descriptor;
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignments getDefaultInstanceForType() {
+        return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignments build() {
+        bdv.bigcat.control.SolverMessages.Assignments result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      public bdv.bigcat.control.SolverMessages.Assignments buildPartial() {
+        bdv.bigcat.control.SolverMessages.Assignments result = new bdv.bigcat.control.SolverMessages.Assignments(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.uuid_ = uuid_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.id_ = id_;
+        if (assignmentsBuilder_ == null) {
+          if (((bitField0_ & 0x00000004) == 0x00000004)) {
+            assignments_ = java.util.Collections.unmodifiableList(assignments_);
+            bitField0_ = (bitField0_ & ~0x00000004);
+          }
+          result.assignments_ = assignments_;
+        } else {
+          result.assignments_ = assignmentsBuilder_.build();
+        }
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
+      }
+
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof bdv.bigcat.control.SolverMessages.Assignments) {
+          return mergeFrom((bdv.bigcat.control.SolverMessages.Assignments)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(bdv.bigcat.control.SolverMessages.Assignments other) {
+        if (other == bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance()) return this;
+        if (other.hasUuid()) {
+          bitField0_ |= 0x00000001;
+          uuid_ = other.uuid_;
+          onChanged();
+        }
+        if (other.hasId()) {
+          setId(other.getId());
+        }
+        if (assignmentsBuilder_ == null) {
+          if (!other.assignments_.isEmpty()) {
+            if (assignments_.isEmpty()) {
+              assignments_ = other.assignments_;
+              bitField0_ = (bitField0_ & ~0x00000004);
+            } else {
+              ensureAssignmentsIsMutable();
+              assignments_.addAll(other.assignments_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.assignments_.isEmpty()) {
+            if (assignmentsBuilder_.isEmpty()) {
+              assignmentsBuilder_.dispose();
+              assignmentsBuilder_ = null;
+              assignments_ = other.assignments_;
+              bitField0_ = (bitField0_ & ~0x00000004);
+              assignmentsBuilder_ = 
+                com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                   getAssignmentsFieldBuilder() : null;
+            } else {
+              assignmentsBuilder_.addAllMessages(other.assignments_);
+            }
+          }
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+
+      public final boolean isInitialized() {
+        if (!hasUuid()) {
+          
+          return false;
+        }
+        if (!hasId()) {
+          
+          return false;
+        }
+        for (int i = 0; i < getAssignmentsCount(); i++) {
+          if (!getAssignments(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        bdv.bigcat.control.SolverMessages.Assignments parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (bdv.bigcat.control.SolverMessages.Assignments) e.getUnfinishedMessage();
+          throw e;
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object uuid_ = "";
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public boolean hasUuid() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public java.lang.String getUuid() {
+        java.lang.Object ref = uuid_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            uuid_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public com.google.protobuf.ByteString
+          getUuidBytes() {
+        java.lang.Object ref = uuid_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          uuid_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public Builder setUuid(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public Builder clearUuid() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        uuid_ = getDefaultInstance().getUuid();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required string uuid = 1;</code>
+       */
+      public Builder setUuidBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000001;
+        uuid_ = value;
+        onChanged();
+        return this;
+      }
+
+      private long id_ ;
+      /**
+       * <code>required uint64 id = 2;</code>
+       */
+      public boolean hasId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      /**
+       * <code>required uint64 id = 2;</code>
+       */
+      public long getId() {
+        return id_;
+      }
+      /**
+       * <code>required uint64 id = 2;</code>
+       */
+      public Builder setId(long value) {
+        bitField0_ |= 0x00000002;
+        id_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required uint64 id = 2;</code>
+       */
+      public Builder clearId() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        id_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      private java.util.List<bdv.bigcat.control.SolverMessages.Assignments> assignments_ =
+        java.util.Collections.emptyList();
+      private void ensureAssignmentsIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          assignments_ = new java.util.ArrayList<bdv.bigcat.control.SolverMessages.Assignments>(assignments_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+
+      private com.google.protobuf.RepeatedFieldBuilder<
+          bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> assignmentsBuilder_;
+
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public java.util.List<bdv.bigcat.control.SolverMessages.Assignments> getAssignmentsList() {
+        if (assignmentsBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(assignments_);
+        } else {
+          return assignmentsBuilder_.getMessageList();
+        }
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public int getAssignmentsCount() {
+        if (assignmentsBuilder_ == null) {
+          return assignments_.size();
+        } else {
+          return assignmentsBuilder_.getCount();
+        }
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments getAssignments(int index) {
+        if (assignmentsBuilder_ == null) {
+          return assignments_.get(index);
+        } else {
+          return assignmentsBuilder_.getMessage(index);
+        }
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder setAssignments(
+          int index, bdv.bigcat.control.SolverMessages.Assignments value) {
+        if (assignmentsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAssignmentsIsMutable();
+          assignments_.set(index, value);
+          onChanged();
+        } else {
+          assignmentsBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder setAssignments(
+          int index, bdv.bigcat.control.SolverMessages.Assignments.Builder builderForValue) {
+        if (assignmentsBuilder_ == null) {
+          ensureAssignmentsIsMutable();
+          assignments_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          assignmentsBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder addAssignments(bdv.bigcat.control.SolverMessages.Assignments value) {
+        if (assignmentsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAssignmentsIsMutable();
+          assignments_.add(value);
+          onChanged();
+        } else {
+          assignmentsBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder addAssignments(
+          int index, bdv.bigcat.control.SolverMessages.Assignments value) {
+        if (assignmentsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureAssignmentsIsMutable();
+          assignments_.add(index, value);
+          onChanged();
+        } else {
+          assignmentsBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder addAssignments(
+          bdv.bigcat.control.SolverMessages.Assignments.Builder builderForValue) {
+        if (assignmentsBuilder_ == null) {
+          ensureAssignmentsIsMutable();
+          assignments_.add(builderForValue.build());
+          onChanged();
+        } else {
+          assignmentsBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder addAssignments(
+          int index, bdv.bigcat.control.SolverMessages.Assignments.Builder builderForValue) {
+        if (assignmentsBuilder_ == null) {
+          ensureAssignmentsIsMutable();
+          assignments_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          assignmentsBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder addAllAssignments(
+          java.lang.Iterable<? extends bdv.bigcat.control.SolverMessages.Assignments> values) {
+        if (assignmentsBuilder_ == null) {
+          ensureAssignmentsIsMutable();
+          com.google.protobuf.AbstractMessageLite.Builder.addAll(
+              values, assignments_);
+          onChanged();
+        } else {
+          assignmentsBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder clearAssignments() {
+        if (assignmentsBuilder_ == null) {
+          assignments_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000004);
+          onChanged();
+        } else {
+          assignmentsBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public Builder removeAssignments(int index) {
+        if (assignmentsBuilder_ == null) {
+          ensureAssignmentsIsMutable();
+          assignments_.remove(index);
+          onChanged();
+        } else {
+          assignmentsBuilder_.remove(index);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments.Builder getAssignmentsBuilder(
+          int index) {
+        return getAssignmentsFieldBuilder().getBuilder(index);
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder(
+          int index) {
+        if (assignmentsBuilder_ == null) {
+          return assignments_.get(index);  } else {
+          return assignmentsBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public java.util.List<? extends bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> 
+           getAssignmentsOrBuilderList() {
+        if (assignmentsBuilder_ != null) {
+          return assignmentsBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(assignments_);
+        }
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments.Builder addAssignmentsBuilder() {
+        return getAssignmentsFieldBuilder().addBuilder(
+            bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments.Builder addAssignmentsBuilder(
+          int index) {
+        return getAssignmentsFieldBuilder().addBuilder(
+            index, bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .solver.Assignments assignments = 3;</code>
+       */
+      public java.util.List<bdv.bigcat.control.SolverMessages.Assignments.Builder> 
+           getAssignmentsBuilderList() {
+        return getAssignmentsFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilder<
+          bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> 
+          getAssignmentsFieldBuilder() {
+        if (assignmentsBuilder_ == null) {
+          assignmentsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+              bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder>(
+                  assignments_,
+                  ((bitField0_ & 0x00000004) == 0x00000004),
+                  getParentForChildren(),
+                  isClean());
+          assignments_ = null;
+        }
+        return assignmentsBuilder_;
+      }
+
+      // @@protoc_insertion_point(builder_scope:solver.Assignments)
+    }
+
+    static {
+      defaultInstance = new Assignments(true);
+      defaultInstance.initFields();
+    }
+
+    // @@protoc_insertion_point(class_scope:solver.Assignments)
+  }
+
   public interface WrapperOrBuilder extends
       // @@protoc_insertion_point(interface_extends:solver.Wrapper)
       com.google.protobuf.MessageOrBuilder {
@@ -3018,6 +4460,19 @@ public final class SolverMessages {
      * <code>optional .solver.Stop stop = 4;</code>
      */
     bdv.bigcat.control.SolverMessages.StopOrBuilder getStopOrBuilder();
+
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    boolean hasAssignments();
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    bdv.bigcat.control.SolverMessages.Assignments getAssignments();
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder();
   }
   /**
    * Protobuf type {@code solver.Wrapper}
@@ -3121,6 +4576,19 @@ public final class SolverMessages {
               msgCase_ = 4;
               break;
             }
+            case 42: {
+              bdv.bigcat.control.SolverMessages.Assignments.Builder subBuilder = null;
+              if (msgCase_ == 5) {
+                subBuilder = ((bdv.bigcat.control.SolverMessages.Assignments) msg_).toBuilder();
+              }
+              msg_ = input.readMessage(bdv.bigcat.control.SolverMessages.Assignments.PARSER, extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((bdv.bigcat.control.SolverMessages.Assignments) msg_);
+                msg_ = subBuilder.buildPartial();
+              }
+              msgCase_ = 5;
+              break;
+            }
           }
         }
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
@@ -3168,6 +4636,7 @@ public final class SolverMessages {
       START(2),
       ANNOTATION(3),
       STOP(4),
+      ASSIGNMENTS(5),
       MSG_NOT_SET(0);
       private int value = 0;
       private MsgCase(int value) {
@@ -3178,6 +4647,7 @@ public final class SolverMessages {
           case 2: return START;
           case 3: return ANNOTATION;
           case 4: return STOP;
+          case 5: return ASSIGNMENTS;
           case 0: return MSG_NOT_SET;
           default: throw new java.lang.IllegalArgumentException(
             "Value is undefined for this oneof enum.");
@@ -3287,6 +4757,32 @@ public final class SolverMessages {
       return bdv.bigcat.control.SolverMessages.Stop.getDefaultInstance();
     }
 
+    public static final int ASSIGNMENTS_FIELD_NUMBER = 5;
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    public boolean hasAssignments() {
+      return msgCase_ == 5;
+    }
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    public bdv.bigcat.control.SolverMessages.Assignments getAssignments() {
+      if (msgCase_ == 5) {
+         return (bdv.bigcat.control.SolverMessages.Assignments) msg_;
+      }
+      return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+    }
+    /**
+     * <code>optional .solver.Assignments assignments = 5;</code>
+     */
+    public bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder() {
+      if (msgCase_ == 5) {
+         return (bdv.bigcat.control.SolverMessages.Assignments) msg_;
+      }
+      return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+    }
+
     private void initFields() {
       type_ = bdv.bigcat.control.SolverMessages.Type.START;
     }
@@ -3318,6 +4814,12 @@ public final class SolverMessages {
           return false;
         }
       }
+      if (hasAssignments()) {
+        if (!getAssignments().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -3336,6 +4838,9 @@ public final class SolverMessages {
       }
       if (msgCase_ == 4) {
         output.writeMessage(4, (bdv.bigcat.control.SolverMessages.Stop) msg_);
+      }
+      if (msgCase_ == 5) {
+        output.writeMessage(5, (bdv.bigcat.control.SolverMessages.Assignments) msg_);
       }
       getUnknownFields().writeTo(output);
     }
@@ -3361,6 +4866,10 @@ public final class SolverMessages {
       if (msgCase_ == 4) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, (bdv.bigcat.control.SolverMessages.Stop) msg_);
+      }
+      if (msgCase_ == 5) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(5, (bdv.bigcat.control.SolverMessages.Assignments) msg_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -3536,6 +5045,13 @@ public final class SolverMessages {
             result.msg_ = stopBuilder_.build();
           }
         }
+        if (msgCase_ == 5) {
+          if (assignmentsBuilder_ == null) {
+            result.msg_ = msg_;
+          } else {
+            result.msg_ = assignmentsBuilder_.build();
+          }
+        }
         result.bitField0_ = to_bitField0_;
         result.msgCase_ = msgCase_;
         onBuilt();
@@ -3569,6 +5085,10 @@ public final class SolverMessages {
             mergeStop(other.getStop());
             break;
           }
+          case ASSIGNMENTS: {
+            mergeAssignments(other.getAssignments());
+            break;
+          }
           case MSG_NOT_SET: {
             break;
           }
@@ -3596,6 +5116,12 @@ public final class SolverMessages {
         }
         if (hasStop()) {
           if (!getStop().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasAssignments()) {
+          if (!getAssignments().isInitialized()) {
             
             return false;
           }
@@ -4077,6 +5603,141 @@ public final class SolverMessages {
         return stopBuilder_;
       }
 
+      private com.google.protobuf.SingleFieldBuilder<
+          bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> assignmentsBuilder_;
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public boolean hasAssignments() {
+        return msgCase_ == 5;
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments getAssignments() {
+        if (assignmentsBuilder_ == null) {
+          if (msgCase_ == 5) {
+            return (bdv.bigcat.control.SolverMessages.Assignments) msg_;
+          }
+          return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+        } else {
+          if (msgCase_ == 5) {
+            return assignmentsBuilder_.getMessage();
+          }
+          return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public Builder setAssignments(bdv.bigcat.control.SolverMessages.Assignments value) {
+        if (assignmentsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          msg_ = value;
+          onChanged();
+        } else {
+          assignmentsBuilder_.setMessage(value);
+        }
+        msgCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public Builder setAssignments(
+          bdv.bigcat.control.SolverMessages.Assignments.Builder builderForValue) {
+        if (assignmentsBuilder_ == null) {
+          msg_ = builderForValue.build();
+          onChanged();
+        } else {
+          assignmentsBuilder_.setMessage(builderForValue.build());
+        }
+        msgCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public Builder mergeAssignments(bdv.bigcat.control.SolverMessages.Assignments value) {
+        if (assignmentsBuilder_ == null) {
+          if (msgCase_ == 5 &&
+              msg_ != bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance()) {
+            msg_ = bdv.bigcat.control.SolverMessages.Assignments.newBuilder((bdv.bigcat.control.SolverMessages.Assignments) msg_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            msg_ = value;
+          }
+          onChanged();
+        } else {
+          if (msgCase_ == 5) {
+            assignmentsBuilder_.mergeFrom(value);
+          }
+          assignmentsBuilder_.setMessage(value);
+        }
+        msgCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public Builder clearAssignments() {
+        if (assignmentsBuilder_ == null) {
+          if (msgCase_ == 5) {
+            msgCase_ = 0;
+            msg_ = null;
+            onChanged();
+          }
+        } else {
+          if (msgCase_ == 5) {
+            msgCase_ = 0;
+            msg_ = null;
+          }
+          assignmentsBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.Assignments.Builder getAssignmentsBuilder() {
+        return getAssignmentsFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      public bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder getAssignmentsOrBuilder() {
+        if ((msgCase_ == 5) && (assignmentsBuilder_ != null)) {
+          return assignmentsBuilder_.getMessageOrBuilder();
+        } else {
+          if (msgCase_ == 5) {
+            return (bdv.bigcat.control.SolverMessages.Assignments) msg_;
+          }
+          return bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>optional .solver.Assignments assignments = 5;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder> 
+          getAssignmentsFieldBuilder() {
+        if (assignmentsBuilder_ == null) {
+          if (!(msgCase_ == 5)) {
+            msg_ = bdv.bigcat.control.SolverMessages.Assignments.getDefaultInstance();
+          }
+          assignmentsBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              bdv.bigcat.control.SolverMessages.Assignments, bdv.bigcat.control.SolverMessages.Assignments.Builder, bdv.bigcat.control.SolverMessages.AssignmentsOrBuilder>(
+                  (bdv.bigcat.control.SolverMessages.Assignments) msg_,
+                  getParentForChildren(),
+                  isClean());
+          msg_ = null;
+        }
+        msgCase_ = 5;
+        return assignmentsBuilder_;
+      }
+
       // @@protoc_insertion_point(builder_scope:solver.Wrapper)
     }
 
@@ -4104,6 +5765,16 @@ public final class SolverMessages {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_solver_Stop_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_solver_Assignment_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_solver_Assignment_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_solver_Assignments_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_solver_Assignments_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_solver_Wrapper_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -4124,13 +5795,18 @@ public final class SolverMessages {
       "\022 \n\024completelyRemovedIds\030\006 \003(\004B\002\020\001\022\n\n\002id" +
       "\030\007 \002(\004\"V\n\nAnnotation\022\014\n\004uuid\030\001 \002(\t\022\017\n\003mi" +
       "n\030\002 \003(\004B\002\020\001\022\017\n\003max\030\003 \003(\004B\002\020\001\022\n\n\002id\030\004 \002(\004" +
-      "\022\014\n\004data\030\005 \002(\014\"\024\n\004Stop\022\014\n\004uuid\030\001 \002(\t\"\224\001\n" +
-      "\007Wrapper\022\032\n\004type\030\001 \002(\0162\014.solver.Type\022\036\n\005" +
-      "start\030\002 \001(\0132\r.solver.StartH\000\022(\n\nannotati",
-      "on\030\003 \001(\0132\022.solver.AnnotationH\000\022\034\n\004stop\030\004" +
-      " \001(\0132\014.solver.StopH\000B\005\n\003msg*+\n\004Type\022\t\n\005S" +
-      "TART\020\000\022\016\n\nANNOTATION\020\001\022\010\n\004STOP\020\002B$\n\022bdv." +
-      "bigcat.controlB\016SolverMessages"
+      "\022\014\n\004data\030\005 \002(\014\"\024\n\004Stop\022\014\n\004uuid\030\001 \002(\t\"3\n\n" +
+      "Assignment\022\022\n\nfragmentId\030\001 \002(\004\022\021\n\tsegmen" +
+      "tId\030\002 \002(\004\"Q\n\013Assignments\022\014\n\004uuid\030\001 \002(\t\022\n",
+      "\n\002id\030\002 \002(\004\022(\n\013assignments\030\003 \003(\0132\023.solver" +
+      ".Assignments\"\300\001\n\007Wrapper\022\032\n\004type\030\001 \002(\0162\014" +
+      ".solver.Type\022\036\n\005start\030\002 \001(\0132\r.solver.Sta" +
+      "rtH\000\022(\n\nannotation\030\003 \001(\0132\022.solver.Annota" +
+      "tionH\000\022\034\n\004stop\030\004 \001(\0132\014.solver.StopH\000\022*\n\013" +
+      "assignments\030\005 \001(\0132\023.solver.AssignmentsH\000" +
+      "B\005\n\003msg*<\n\004Type\022\t\n\005START\020\000\022\016\n\nANNOTATION" +
+      "\020\001\022\010\n\004STOP\020\002\022\017\n\013ASSIGNMENTS\020\003B$\n\022bdv.big" +
+      "cat.controlB\016SolverMessages"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -4162,12 +5838,24 @@ public final class SolverMessages {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_solver_Stop_descriptor,
         new java.lang.String[] { "Uuid", });
-    internal_static_solver_Wrapper_descriptor =
+    internal_static_solver_Assignment_descriptor =
       getDescriptor().getMessageTypes().get(3);
+    internal_static_solver_Assignment_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_solver_Assignment_descriptor,
+        new java.lang.String[] { "FragmentId", "SegmentId", });
+    internal_static_solver_Assignments_descriptor =
+      getDescriptor().getMessageTypes().get(4);
+    internal_static_solver_Assignments_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_solver_Assignments_descriptor,
+        new java.lang.String[] { "Uuid", "Id", "Assignments", });
+    internal_static_solver_Wrapper_descriptor =
+      getDescriptor().getMessageTypes().get(5);
     internal_static_solver_Wrapper_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_solver_Wrapper_descriptor,
-        new java.lang.String[] { "Type", "Start", "Annotation", "Stop", "Msg", });
+        new java.lang.String[] { "Type", "Start", "Annotation", "Stop", "Assignments", "Msg", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

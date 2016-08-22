@@ -2,9 +2,11 @@ package bdv.bigcat.control;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
@@ -26,6 +28,7 @@ import bdv.util.sparse.MapSparseRandomAccessible.HashableLongArray;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
+import net.imglib2.IterableInterval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -47,7 +50,6 @@ import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
-import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 /**
@@ -58,6 +60,64 @@ import net.imglib2.view.Views;
  */
 public class SendPaintedLabelsToSolver
 {
+
+	public final class AnnotationTask implements Comparable< AnnotationTask >
+	{
+		private final String uuid;
+
+		private final long id;
+
+		private final Collection< Long > containedIds;
+
+		private final Collection< Long > neighboringIds;
+
+		private final Collection< Long > completelyRemovedIds;
+
+		private final HashMap< HashableLongArray, RandomAccessibleInterval< BitType > > data;
+
+		private final long[] min;
+
+		private final long[] max;
+
+		public AnnotationTask(
+				final String uuid,
+				final long id,
+				final Collection< Long > containedIds,
+				final Collection< Long > neighboringIds,
+				final Collection< Long > completelyRemovedIds,
+				final HashMap< HashableLongArray, RandomAccessibleInterval< BitType > > data,
+				final long[] min,
+				final long[] max )
+		{
+			super();
+			this.uuid = uuid;
+			this.id = id;
+			this.containedIds = containedIds;
+			this.neighboringIds = neighboringIds;
+			this.completelyRemovedIds = completelyRemovedIds;
+			this.data = data;
+			this.min = min;
+			this.max = max;
+		}
+
+		public int hashChode()
+		{
+			return uuid.hashCode();
+		}
+
+		public boolean Equals( final Object obj )
+		{
+			return uuid.equals( obj );
+		}
+
+		@Override
+		public int compareTo( final AnnotationTask o )
+		{
+			return Long.compare( id, o.id );
+		}
+
+	}
+
 	final private ViewerPanel viewer;
 
 	final private RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
@@ -72,6 +132,10 @@ public class SendPaintedLabelsToSolver
 	private final InputTriggerMap inputTriggerMap = new InputTriggerMap();
 
 	private final InputTriggerAdder inputAdder;
+
+	private final HashSet< AnnotationTask > activeAnnotationTasks;
+
+	private final PriorityQueue< AnnotationTask > annotationTaskQueue;
 
 	public BehaviourMap getBehaviourMap()
 	{
@@ -103,8 +167,23 @@ public class SendPaintedLabelsToSolver
 		this.cellDimensions = cellDimensions;
 		this.inputAdder = config.inputTriggerAdder( inputTriggerMap, "Solver" );
 		this.socket = socket;
+		this.activeAnnotationTasks = new HashSet<>();
+		this.annotationTaskQueue = new PriorityQueue<>();
+
+		new Thread( () -> {
+			try
+			{
+				checkQueueAndSend();
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} ).start();
 
 		new SendLabels( "send painted label to solver", "ctrl shift A button1" ).register();
+		System.out.println( "Finished constructor..." );
 	}
 
 	private abstract class SelfRegisteringBehaviour implements Behaviour
@@ -128,6 +207,136 @@ public class SendPaintedLabelsToSolver
 		{
 			behaviourMap.put( name, this );
 			inputAdder.put( name, defaultTriggers );
+		}
+	}
+
+	private void checkQueueAndSend() throws InterruptedException
+	{
+		while ( !Thread.currentThread().isInterrupted() )
+		{
+			Thread.sleep( 100 ); // sleep 0.1 seconds
+//			System.out.println( "Checking for tasks..." );
+			synchronized ( this.annotationTaskQueue )
+			{
+				if ( annotationTaskQueue.size() > 0 )
+				{
+					System.out.println( "Found task..." );
+					final AnnotationTask annotationTask = annotationTaskQueue.peek();
+					final HashSet< Long > allIds = new HashSet<>();
+					allIds.addAll( annotationTask.containedIds );
+					allIds.addAll( annotationTask.neighboringIds );
+					boolean isInConflict = false;
+					for ( final AnnotationTask task : activeAnnotationTasks )
+					{
+						for ( final long id : allIds )
+						{
+							if ( task.containedIds.contains( id ) || task.neighboringIds.contains( id ) )
+							{
+								isInConflict = true;
+							}
+						}
+					}
+
+					if ( isInConflict )
+					{
+//						System.out.println( "Task in conflict..." );
+					}
+					else
+					{
+						System.out.println( "Task not in conflict..." );
+						annotationTaskQueue.poll();
+
+						activeAnnotationTasks.add( annotationTask );
+
+						final Builder startMessageBuilder = SolverMessages.Start.newBuilder();
+						startMessageBuilder.setUuid( annotationTask.uuid );
+						startMessageBuilder.setId( annotationTask.id );
+						for ( int d = 0; d < 3; ++d )
+						{
+							startMessageBuilder.addMin( annotationTask.min[ d ] );
+							startMessageBuilder.addMax( annotationTask.max[ d ] );
+						}
+
+						startMessageBuilder.addAllContainedIds( annotationTask.containedIds );
+						startMessageBuilder.addAllNeighboringIds( annotationTask.neighboringIds );
+						startMessageBuilder.addAllCompletelyRemovedIds( annotationTask.completelyRemovedIds );
+
+						final SolverMessages.Start startMessage = startMessageBuilder.build();
+
+						socket.send( SolverMessages.Wrapper.newBuilder()
+								.setType( SolverMessages.Type.START )
+								.setStart( startMessage )
+								.build().toByteArray(), ZMQ.SNDMORE );
+
+						final int cellSize = cellDimensions[ 0 ] * cellDimensions[ 1 ] * cellDimensions[ 2 ];
+
+						final byte[] bytes = new byte[ cellSize ];
+
+						final ByteBuffer buffer = ByteBuffer.wrap( bytes );
+
+						final byte ONE = ( byte ) 1;
+						final byte ZERO = ( byte ) 0;
+
+						final long[] currentMin = new long[ 3 ];
+						final long[] currentMax = new long[ 3 ];
+
+						for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > entry : annotationTask.data.entrySet() )
+						{
+							final SolverMessages.Annotation.Builder annotationMessageBuilder = SolverMessages.Annotation.newBuilder();
+							annotationMessageBuilder.setId( annotationTask.id );
+							annotationMessageBuilder.setUuid( annotationTask.uuid );
+							boolean sendMessage = false;
+							buffer.rewind();
+
+							final RandomAccessibleInterval< BitType > rai = entry.getValue();
+							rai.min( currentMin );
+							rai.max( currentMax );
+
+							for ( int d = 0; d < currentMin.length; ++d )
+							{
+								annotationMessageBuilder.addMin( currentMin[ d ] );
+								annotationMessageBuilder.addMax( currentMax[ d ] );
+							}
+
+//							final IntervalView< BitType > cell = Views.interval(
+//									target,
+//									currentMin,
+//									currentMax );
+							final IterableInterval< BitType > cell = Views.iterable( entry.getValue() );
+							for ( final BitType bit : cell )
+							{
+								if ( bit.get() )
+								{
+									buffer.put( ONE );
+									sendMessage = true;
+								}
+								else
+								{
+									buffer.put( ZERO );
+								}
+							}
+
+							if ( sendMessage )
+							{
+								annotationMessageBuilder.setData( ByteString.copyFrom( bytes ) );
+								System.out.println( "Sending message!" );
+//								socket.send( bytes, ZMQ.SNDMORE );
+								socket.send( SolverMessages.Wrapper.newBuilder()
+										.setType( SolverMessages.Type.ANNOTATION )
+										.setAnnotation( annotationMessageBuilder )
+										.build().toByteArray(), ZMQ.SNDMORE );
+							}
+						}
+
+//						socket.send( "stop" );
+						socket.send( SolverMessages.Wrapper.newBuilder()
+								.setType( SolverMessages.Type.STOP )
+								.setStop( SolverMessages.Stop.newBuilder().setUuid( annotationTask.uuid ).build() )
+								.build().toByteArray(), 0 );
+					}
+
+				}
+			}
 		}
 	}
 
@@ -337,116 +546,19 @@ public class SendPaintedLabelsToSolver
 
 					System.out.println( "BLEB" );
 
-					final long uuid = labelLong;
-
-					final Builder startMessageBuilder = SolverMessages.Start.newBuilder();
-					startMessageBuilder.setUuid( Long.toString( uuid ) );
-					startMessageBuilder.setId( labelLong );
-					for ( int d = 0; d < 3; ++d ) {
-						startMessageBuilder.addMin( min[ d ] );
-						startMessageBuilder.addMax( max[ d ] );
-					}
-
-					startMessageBuilder.addAllContainedIds( inner );
-					startMessageBuilder.addAllNeighboringIds( outer );
-					startMessageBuilder.addAllCompletelyRemovedIds( overPainted );
-
-					final SolverMessages.Start startMessage =startMessageBuilder.build();
-
-//					socket.send( "start", ZMQ.SNDMORE );
-					socket.send( SolverMessages.Wrapper.newBuilder()
-							.setType( SolverMessages.Type.START )
-							.setStart( startMessage )
-							.build().toByteArray(), ZMQ.SNDMORE );
-//					final byte[] bboxArray = new byte[ 3 * Long.BYTES + 3 * Long.BYTES ];
-//					final ByteBuffer bboxBuffer = ByteBuffer.wrap( bboxArray );
-//					for ( final long m : min )
-//					{
-//						bboxBuffer.putLong( m );
-//					}
-//					for ( final long m : max )
-//					{
-//						bboxBuffer.putLong( m );
-//					}
-//					socket.send( bboxArray, ZMQ.SNDMORE );
-
-					final int cellSize = cellDimensions[0] * cellDimensions[1] * cellDimensions[2];
-
-//					final byte[] bytes = new byte[ cellSize + 3 * Long.BYTES + + 3 * Long.BYTES + 1 * Long.BYTES ]; // mask (cell) + min + max + label
-
-					final byte[] bytes = new byte[ cellSize ];
-
-					final ByteBuffer buffer = ByteBuffer.wrap( bytes );
-
-					final byte ONE = ( byte ) 1;
-					final byte ZERO = ( byte ) 0;
-
-					final long[] currentMin = new long[ 3 ];
-					final long[] currentMax = new long[ 3 ];
-
-					for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > entry : hm.entrySet() )
+					synchronized ( annotationTaskQueue )
 					{
-						final SolverMessages.Annotation.Builder annotationMessageBuilder = SolverMessages.Annotation.newBuilder();
-						annotationMessageBuilder.setId( labelLong );
-						annotationMessageBuilder.setUuid( Long.toString( uuid ) );
-						boolean sendMessage = false;
-						buffer.rewind();
-
-						final RandomAccessibleInterval< BitType > rai = entry.getValue();
-						rai.min( currentMin );
-						rai.max( currentMax );
-
-						for ( int d = 0; d < currentMin.length; ++d )
-						{
-							annotationMessageBuilder.addMin( currentMin[ d ] );
-							annotationMessageBuilder.addMax( currentMax[ d ] );
-						}
-
-//						for ( final long c : currentMin )
-//						{
-//							buffer.putLong( c );
-//						}
-//
-//						for ( final long c : currentMax )
-//						{
-//							buffer.putLong( c );
-//						}
-//						buffer.putLong( labelLong );
-
-						final IntervalView< BitType > cell = Views.interval(
-								target,
-								currentMin,
-								currentMax );
-						for ( final BitType bit : cell )
-						{
-							if ( bit.get() )
-							{
-								buffer.put( ONE );
-								sendMessage = true;
-							}
-							else
-							{
-								buffer.put( ZERO );
-							}
-						}
-
-						if ( sendMessage )
-						{
-							annotationMessageBuilder.setData( ByteString.copyFrom( bytes ) );
-							System.out.println( "Sending message!" );
-//							socket.send( bytes, ZMQ.SNDMORE );
-							socket.send( SolverMessages.Wrapper.newBuilder()
-									.setType( SolverMessages.Type.ANNOTATION )
-									.setAnnotation( annotationMessageBuilder )
-									.build().toByteArray(), ZMQ.SNDMORE );
-						}
+						final AnnotationTask task = new AnnotationTask(
+								Long.toString( labelLong ),
+								labelLong,
+								inner,
+								outer,
+								overPainted,
+								hm,
+								min,
+								max );
+						annotationTaskQueue.add( task );
 					}
-
-//					socket.send( "stop" );
-					socket.send( SolverMessages.Wrapper.newBuilder()
-							.setType( SolverMessages.Type.STOP )
-							.setStop( SolverMessages.Stop.newBuilder().setUuid( Long.toString( uuid ) ).build() )
-							.build().toByteArray(), 0 );
 
 				}
 			}
