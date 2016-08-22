@@ -21,7 +21,6 @@ import bdv.util.sparse.MapSparseRandomAccessible;
 import bdv.util.sparse.MapSparseRandomAccessible.HashableLongArray;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPositionable;
@@ -151,10 +150,6 @@ public class SendPaintedLabelsToSolver
 			{
 				final RealRandomAccess< LongType > paintAccess =
 						Views.interpolate( Views.extendValue( labelSource, new LongType( Label.OUTSIDE ) ), new NearestNeighborInterpolatorFactory<>() ).realRandomAccess();
-//				paintAccess.setPosition( x, 0 );
-//				paintAccess.setPosition( y, 1 );
-//				paintAccess.setPosition( 0, 2 );
-//				viewer.displayToGlobalCoordinates( paintAccess );
 				setCoordinates( paintAccess, x, y );
 
 				final LongType label = paintAccess.get();
@@ -199,17 +194,8 @@ public class SendPaintedLabelsToSolver
 							result = ArrayImgs.bits( dim );
 						}
 
-//						for ( int i = 0; i < 3; ++i )
-//						{
-//							System.out.print( Views.translate( result, min ).min( i ) + ", " );
-//						}
-//						System.out.println();
 						return Views.translate( result, min );
 					};
-
-//					System.out.println( Arrays.toString( initialMin ) + " " + Arrays.toString( initialMax ) );
-//					final GrowingStoreRandomAccessible< BitType > target =
-//							new GrowingStoreRandomAccessible<>( initialMin, initialMax, factory, new BitType() );
 
 					final long[] cellDimensionsLong = new long[] { cellDimensions[ 0 ], cellDimensions[ 1 ], cellDimensions[ 2 ] };
 					final HashMap< HashableLongArray, RandomAccessibleInterval< BitType > > hm = new HashMap<>();
@@ -223,14 +209,9 @@ public class SendPaintedLabelsToSolver
 					final Filter< Pair< LongType, BitType >, Pair< LongType, BitType > > filter = ( lb1, lb2 ) -> {
 						return !lb1.getB().get() && lb1.getA().valueEquals( lb2.getA() );
 					};
-					// !(b.get() || l.get() != labelLong)?
 					System.out.println( "Start fill" );
 					FloodFill.fill( source, target, seed, fillLabel, shape, filter );
 					System.out.println( "Stop fill" );
-//					final BlockedInterval< BitType > blocked = BlockedInterval.createValueExtended(
-//							Views.interval( target, target.getIntervalOfSizeOfStore() ),
-//							new long[] { cellDimensions[ 0 ], cellDimensions[ 1 ], cellDimensions[ 2 ] },
-//							new BitType( false ) );
 
 					final long[] min = new long[] { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
 					final long[] max = new long[] { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
@@ -251,45 +232,10 @@ public class SendPaintedLabelsToSolver
 						max[ d ] = max[ d ] * cellDimensionsLong[ d ] + cellDimensionsLong[ d ] - 1;
 					}
 
-//					target.getIntervalOfSizeOfStore().min( min );
-//					target.getIntervalOfSizeOfStore().max( max );
 					System.out.println( "min: " + Arrays.toString( min ) );
 					System.out.println( "max: " + Arrays.toString( max ) );
 
-//					for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > keyRai : hm.entrySet() )
-//					{
-//						System.out.println( "keyra! " + Arrays.toString( keyRai.getKey().getData() ) + " " + Arrays.toString( cellDimensionsLong ) );
-//						ImageJFunctions.show( keyRai.getValue(), Arrays.toString( keyRai.getKey().getData() ) );
-//					}
-//					ImageJFunctions.show( Views.interval( target, new FinalInterval( min, max ) ) );
 
-//					BdvFunctions.show( new ConvertedRandomAccessibleInterval<>( Views.interval( target, new FinalInterval( min, max ) ), ( b1, b2 ) -> {
-//						b2.set( !b1.get() );
-//					}, new BitType() ), "BLA" );
-
-//					blocked.min( min );
-//					blocked.max( max );
-//					System.out.println( Arrays.toString( min ) );
-//					System.out.println( Arrays.toString( max ) );
-
-//					final IntervalView< BitType > store = Views.interval( target, target.getIntervalOfSizeOfStore() );
-//
-//					for ( final BitType s : store )
-//					{
-//						if ( s.get() )
-//						{
-//							System.out.println( "TRUE VERDAMMT NOCHMAL!" );
-//							break;
-//						}
-//					}
-//					System.out.println( "War's true?" );
-//
-//					System.out.println( "Sending start!" );
-//					for ( int d = 0; d < 3; ++d )
-//					{
-//						System.out.println( target.getIntervalOfSizeOfStore().min( d ) + " " + target.getIntervalOfSizeOfStore().max( d ) );
-//					}
-//					System.out.println( "INTV" );
 					socket.send( "start", ZMQ.SNDMORE );
 					final byte[] bboxArray = new byte[ 3 * Long.BYTES + 3 * Long.BYTES ];
 					final ByteBuffer bboxBuffer = ByteBuffer.wrap( bboxArray );
@@ -303,7 +249,6 @@ public class SendPaintedLabelsToSolver
 					}
 					socket.send( bboxArray, ZMQ.SNDMORE );
 
-//					final int size = [ cellDimensions[0] * ];
 					final int cellSize = cellDimensions[0] * cellDimensions[1] * cellDimensions[2];
 
 					final byte[] bytes = new byte[ cellSize + 3 * Long.BYTES + + 3 * Long.BYTES + 1 * Long.BYTES ]; // mask (cell) + min + max + label
@@ -312,8 +257,6 @@ public class SendPaintedLabelsToSolver
 
 					final byte ONE = ( byte ) 1;
 					final byte ZERO = ( byte ) 0;
-
-					final RandomAccess< BitType > maskAccess = target.randomAccess();
 
 					final long[] currentMin = new long[ 3 ];
 					final long[] currentMax = new long[ 3 ];
@@ -343,12 +286,10 @@ public class SendPaintedLabelsToSolver
 								currentMax );
 						for ( final BitType bit : cell )
 						{
-//							System.out.println( bit + Arrays.toString( new long[] { xIndex, yIndex, zIndex } ) + " " + Arrays.toString( new long[] { xMax, yMax, zMax } ) );
 							if ( bit.get() )
 							{
 								buffer.put( ONE );
 								sendMessage = true;
-//								System.out.println( "TRUE!" );
 							}
 							else
 							{
@@ -360,66 +301,10 @@ public class SendPaintedLabelsToSolver
 							System.out.println( "Sending message!" );
 							socket.send( bytes, ZMQ.SNDMORE );
 						}
-//						System.out.println( sendMessage );
 					}
 
-//					for ( long zIndex = min[ 2 ]; zIndex < max[ 2 ]; zIndex += cellDimensions[ 2 ] )
-//					{
-//						for ( long yIndex = min[ 1 ]; yIndex < max[ 1 ]; yIndex += cellDimensions[ 1 ] )
-//						{
-//							for ( long xIndex = min[ 0 ]; xIndex < max[ 0 ]; xIndex += cellDimensions[ 0 ] )
-//							{
-//								boolean sendMessage = false;
-//								buffer.rewind();
-//
-//								final long xMax = Math.min( xIndex + cellDimensions[ 0 ] - 1, max[ 0 ] );
-//								final long yMax = Math.min( yIndex + cellDimensions[ 1 ] - 1, max[ 1 ] );
-//								final long zMax = Math.min( zIndex + cellDimensions[ 2 ] - 1, max[ 2 ] );
-//
-//								buffer.putLong( xIndex );
-//								buffer.putLong( yIndex );
-//								buffer.putLong( zIndex );
-//
-//								buffer.putLong( xMax );
-//								buffer.putLong( yMax );
-//								buffer.putLong( zMax );
-//
-//								buffer.putLong( labelLong );
-//
-////								final IntervalView< BitType > cell = Views.offsetInterval(
-////										Views.extendValue( store, new BitType( false ) ),
-////										new long[] { xIndex, yIndex, zIndex },
-////										new long[] { xMax, yMax, zMax } );
-//								final IntervalView< BitType > cell = Views.interval(
-//										target,
-//										new long[] { xIndex, yIndex, zIndex },
-//										new long[] { xMax, yMax, zMax } );
-//								for ( final BitType bit : cell )
-//								{
-////									System.out.println( bit + Arrays.toString( new long[] { xIndex, yIndex, zIndex } ) + " " + Arrays.toString( new long[] { xMax, yMax, zMax } ) );
-//									if ( bit.get() )
-//									{
-//										buffer.put( ONE );
-//										sendMessage = true;
-//										System.out.println( "TRUE!" );
-//									}
-//									else
-//									{
-//										buffer.put( ZERO );
-//									}
-//								}
-//								if ( sendMessage )
-//								{
-//									System.out.println( "Sending message!" );
-//									socket.send( bytes, ZMQ.SNDMORE );
-//								}
-//								System.out.println( sendMessage );
-//							}
-//						}
-//					}
 					socket.send( "stop" );
 
-					// socket.send( ( byte[] ) null, ZMQ.SNDMORE );
 				}
 			}
 		}
