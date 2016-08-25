@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 
+import bdv.util.sparse.MapSparseRandomAccessible.HashableLongArray;
 import ij.ImageJ;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -17,7 +18,6 @@ import net.imglib2.Sampler;
 import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.Img;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
@@ -30,54 +30,10 @@ import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
-public class MapSparseRandomAccessible< T extends Type< T > > implements SparseRandomAccessible< T >
+public class ConstantMapSparseRandomAccessible< T extends Type< T > > implements SparseRandomAccessible< T >
 {
 
-	public static class HashableLongArray
-	{
-		private final long[] data;
-
-		public HashableLongArray( final long[] data )
-		{
-			super();
-			this.data = data;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			int hashCode = 1;
-			for ( int i = 0; i < data.length; ++i )
-			{
-				hashCode = 31 * hashCode + Long.hashCode( data[ i ] );
-			}
-			return hashCode;
-		}
-
-		@Override
-		public boolean equals( final Object o )
-		{
-			if ( o instanceof HashableLongArray ) {
-				return Arrays.equals( data, ( ( HashableLongArray ) o ).data );
-			} else if ( o instanceof long[] ) {
-				return Arrays.equals( data, ( long[] ) o );
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		public long[] getData()
-		{
-			return data;
-		}
-
-	}
-
 	private final int numDimensions;
-
-	private final ImgFactory< T > factory;
 
 	private final long[] cellSize;
 
@@ -97,23 +53,20 @@ public class MapSparseRandomAccessible< T extends Type< T > > implements SparseR
 		return accesses;
 	}
 
-	public MapSparseRandomAccessible(
-			final ImgFactory< T > factory,
+	public ConstantMapSparseRandomAccessible(
 			final long[] cellSize,
 			final T defaultValue )
 	{
-		this( factory, cellSize, defaultValue, new HashMap<>() );
+		this( cellSize, defaultValue, new HashMap<>() );
 	}
 
-	public MapSparseRandomAccessible(
-			final ImgFactory< T > factory,
+	public ConstantMapSparseRandomAccessible(
 			final long[] cellSize,
 			final T defaultValue,
 			final Map< HashableLongArray, RandomAccessibleInterval< T > > store )
 	{
 		super();
 		this.numDimensions = cellSize.length;
-		this.factory = factory;
 		this.cellSize = cellSize;
 		this.defaultValue = defaultValue;
 		this.store = store;
@@ -122,11 +75,6 @@ public class MapSparseRandomAccessible< T extends Type< T > > implements SparseR
 		{
 			this.accesses.put( entry.getKey(), entry.getValue().randomAccess() );
 		}
-	}
-
-	public ConstantMapSparseRandomAccessible< T > constantView()
-	{
-		return new ConstantMapSparseRandomAccessible<>( cellSize, defaultValue, store );
 	}
 
 	@Override
@@ -195,22 +143,10 @@ public class MapSparseRandomAccessible< T extends Type< T > > implements SparseR
 		{
 			globalToMap( position, local, cellSize );
 			final HashableLongArray hLocal = new HashableLongArray( local.clone() );
-			RandomAccess< T > access = accesses.get( hLocal );
+			final RandomAccess< T > access = accesses.get( hLocal );
 			if ( access == null )
 			{
-				final long[] translation = new long[ numDimensions ];
-				for ( int d = 0; d < numDimensions; ++d )
-				{
-					translation[ d ] = local[ d ] * cellSize[ d ];
-				}
-				final Img< T > img = factory.create( cellSize, defaultValue );
-				for ( final T i : img ) {
-					i.set( defaultValue );
-				}
-				final RandomAccessibleInterval< T > translatedImg = Views.translate( img, translation );
-				access = translatedImg.randomAccess();
-				store.put( hLocal, translatedImg );
-				accesses.put( hLocal, access );
+				return defaultValue;
 			}
 //			System.out.println( Arrays.toString( local ) + " " + Arrays.toString( position ) );
 //			if ( local[ 0 ] == -2 )
@@ -247,7 +183,7 @@ public class MapSparseRandomAccessible< T extends Type< T > > implements SparseR
 		final ImgFactory< LongType > factory = new ArrayImgFactory<>();
 		final HashMap< HashableLongArray, RandomAccessibleInterval< LongType > > hm = new HashMap<>();
 		final LongType defaultValue = new LongType( 3 );
-		final MapSparseRandomAccessible< LongType > accessible = new MapSparseRandomAccessible<>( factory, cellSize, defaultValue, hm );
+		final ConstantMapSparseRandomAccessible< LongType > accessible = new ConstantMapSparseRandomAccessible<>( cellSize, defaultValue, hm );
 
 		final Random rng = new Random( 100 );
 

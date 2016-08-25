@@ -31,6 +31,7 @@ import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.SendPaintedLabelsToSolver;
@@ -367,6 +368,16 @@ public class BigCatBinaryMaskVis
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
+			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+					bdv.getViewer(),
+					fragments.getImage( 0 ),
+					paintedLabels,
+					fragments.getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					new DiamondShape( 1 ),
+					config );
+
 			final Context context = ZMQ.context( 1 );
 			final Socket socket = context.socket( ZMQ.PUB );
 			final Socket receiver = context.socket( ZMQ.SUB );
@@ -513,8 +524,13 @@ public class BigCatBinaryMaskVis
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
 					new int[] { 64, 64, 32 },
+					cellDimensions,
 					config,
-					socket );
+					socket,
+					idService,
+					assignment,
+					new File( projectFile ),
+					mergedLabelsDataset );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
@@ -530,6 +546,9 @@ public class BigCatBinaryMaskVis
 
 			bindings.addBehaviourMap( "send", sendLabels.getBehaviourMap() );
 			bindings.addInputTriggerMap( "send", sendLabels.getInputTriggerMap() );
+
+			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
 
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{

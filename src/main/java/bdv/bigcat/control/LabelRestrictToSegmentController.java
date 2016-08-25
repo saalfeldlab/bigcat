@@ -51,12 +51,12 @@ public class LabelRestrictToSegmentController
 	private final static int DUMMY_PAINT = -2;
 
 	public static final Filter<
-            Pair< Pair< LabelMultisetType, LongType >, LongType >,
-            Pair< Pair< LabelMultisetType, LongType >, LongType > > LABEL_FILTER =
-			( current, reference ) -> current.getA().getB().getIntegerLong() == reference.getA().getB().getIntegerLong();
+	Pair< Pair< LabelMultisetType, LongType >, LongType >,
+	Pair< Pair< LabelMultisetType, LongType >, LongType > > LABEL_FILTER =
+	( current, reference ) -> current.getA().getB().getIntegerLong() == reference.getA().getB().getIntegerLong();
 
 	public static class LabelFilter< T extends IntegerType< T > >
-			implements Filter< Pair< Pair< LabelMultisetType, T >, T >, Pair< Pair< LabelMultisetType, T >, T > >
+	implements Filter< Pair< Pair< LabelMultisetType, T >, T >, Pair< Pair< LabelMultisetType, T >, T > >
 	{
 
 //        private final long newLabel;
@@ -74,7 +74,7 @@ public class LabelRestrictToSegmentController
 	}
 
 	public static class WriteTransparentIfDifferentSegment< T extends IntegerType< T > >
-			implements Converter< Pair< LabelMultisetType, T >, T >
+	implements Converter< Pair< LabelMultisetType, T >, T >
 	{
 
 		private final long TRANSPARENT = Label.TRANSPARENT;
@@ -105,7 +105,9 @@ public class LabelRestrictToSegmentController
 				{
 					isInSameSegment = labelMultiset.contains( fragment );
 					if ( isInSameSegment )
+					{
 						break;
+					}
 				}
 				target.setInteger( isInSameSegment ? newPaint : TRANSPARENT );
 			}
@@ -230,45 +232,45 @@ public class LabelRestrictToSegmentController
 				paintAccess.setPosition( p );
 				final long seedPaint = paintAccess.get().getIntegerLong();
 
-                if ( seedPaint != Label.TRANSPARENT ) {
-                    final long seedFragmentLabel = getBiggestLabel(labels, p);
-                    final long seedSegmentLabel = assignment.getSegment(seedFragmentLabel);
-                    final long[] fragmentsInSeedSegment = assignment.getFragments(seedSegmentLabel);
+				if ( seedPaint != Label.TRANSPARENT ) {
+					final long seedFragmentLabel = getBiggestLabel(labels, p);
+					final long seedSegmentLabel = assignment.getSegment(seedFragmentLabel);
+					final long[] fragmentsInSeedSegment = assignment.getFragments(seedSegmentLabel);
 
-                    final long t0 = System.currentTimeMillis();
-                    // current work around: fill intersect with dummy color, then
-                    // fill dummy color with initial color
-                    FloodFill.fill(
-                            Views.extendValue(labels, new LabelMultisetType()),
-                            Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
-                            p,
-                            new LabelMultisetType(),
-                            new LongType(DUMMY_PAINT),
-                            new DiamondShape(1),
-                            new LabelFillController.SegmentAndPaintFilter1(
-                                    seedPaint,
-                                    seedFragmentLabel,
-                                    assignment));
-                    final long t1 = System.currentTimeMillis();
-                    // current work around: fill intersect with dummy color, then
-                    // fill dummy color with initial color
-                    intersect(
-                            Views.extendValue(labels, new LabelMultisetType()),
-                            Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
-                            Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
-                            new DiamondShape(1),
-                            p,
-                            new ValuePair<>(new ValuePair<>(new LabelMultisetType(), new LongType(DUMMY_PAINT)), new LongType(DUMMY_PAINT)),
-                            LABEL_FILTER,
-                            new WriteTransparentIfDifferentSegment<>(fragmentsInSeedSegment, DUMMY_PAINT, seedPaint) // to
-                            // proper
-                            // newPaint
-                    );
-                    System.out.println( "Intersecting took " + ( t1 - t0 ) + " ms" );
-                }
+					final long t0 = System.currentTimeMillis();
+					// current work around: fill intersect with dummy color, then
+					// fill dummy color with initial color
+					FloodFill.fill(
+							Views.extendValue(labels, new LabelMultisetType()),
+							Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
+							p,
+							new LabelMultisetType(),
+							new LongType(DUMMY_PAINT),
+							new DiamondShape(1),
+							new LabelFillController.SegmentAndPaintFilter1(
+									seedPaint,
+									seedFragmentLabel,
+									assignment));
+					final long t1 = System.currentTimeMillis();
+					// current work around: fill intersect with dummy color, then
+					// fill dummy color with initial color
+					intersect(
+							Views.extendValue(labels, new LabelMultisetType()),
+							Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
+							Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)),
+							new DiamondShape(1),
+							p,
+							new ValuePair<>(new ValuePair<>(new LabelMultisetType(), new LongType(DUMMY_PAINT)), new LongType(DUMMY_PAINT)),
+							LABEL_FILTER,
+							new WriteTransparentIfDifferentSegment<>(fragmentsInSeedSegment, DUMMY_PAINT, seedPaint) // to
+							// proper
+							// newPaint
+							);
+					System.out.println( "Intersecting took " + ( t1 - t0 ) + " ms" );
+				}
 
-                viewer.setCursor( java.awt.Cursor.getPredefinedCursor( java.awt.Cursor.DEFAULT_CURSOR ) );
-                viewer.requestRepaint();
+				viewer.setCursor( java.awt.Cursor.getPredefinedCursor( java.awt.Cursor.DEFAULT_CURSOR ) );
+				viewer.requestRepaint();
 			}
 		}
 	}
@@ -329,7 +331,9 @@ public class LabelRestrictToSegmentController
 			}
 
 			for ( int d = 0; d < n; ++d )
+			{
 				neighborhoodAccess.setPosition( coordinates[ d ].get( i ), d );
+			}
 
 			final Cursor< Pair< Pair< T, U >, V > > neighborhoodCursor = neighborhoodAccess.get().cursor();
 
@@ -340,7 +344,9 @@ public class LabelRestrictToSegmentController
 				{
 					writer.convert( p.getA(), p.getB() );
 					for ( int d = 0; d < n; ++d )
+					{
 						coordinates[ d ].add( neighborhoodCursor.getLongPosition( d ) );
+					}
 				}
 			}
 

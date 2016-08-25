@@ -489,9 +489,14 @@ public class BigCat
 					fragments.getImage( 0 ),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
-					new int[] { 256, 256, 32 },
+					new int[] { 64, 64, 32 },
+					cellDimensions,
 					config,
-					socket );
+					socket,
+					idService,
+					assignment,
+					new File( projectFile ),
+					mergedLabelsDataset );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
