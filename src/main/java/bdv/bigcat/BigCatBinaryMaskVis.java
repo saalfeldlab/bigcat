@@ -90,6 +90,8 @@ public class BigCatBinaryMaskVis
 	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
 	private FragmentSegmentAssignment assignment;
 	private final String projectFile;
+
+	private String fragmentsPath;
 	private final String paintedLabelsDataset;
 	private final String mergedLabelsDataset;
 	private String fragmentSegmentLutDataset;
@@ -142,7 +144,7 @@ public class BigCatBinaryMaskVis
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawPath, 0, cellDimensions );
 
 		/* fragments */
-		String fragmentsPath = labelsPath + "/" + labelsDataset;
+		fragmentsPath = labelsPath + "/" + labelsDataset;
 		mergedLabelsDataset = labelsPath + "/merged_" + labelsDataset;
 		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
 		fragmentsPath = reader.object().isDataSet( mergedLabelsDataset ) ? mergedLabelsDataset : fragmentsPath;
@@ -419,7 +421,7 @@ public class BigCatBinaryMaskVis
 							{
 								startedTransmission = false;
 								receivedBoundingbox = false;
-								bdv = BdvFunctions.show( img, "mask" );
+								bdv = BdvFunctions.show( img, "" + label );
 
 								bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
 								label = -1;
@@ -444,7 +446,7 @@ public class BigCatBinaryMaskVis
 								}
 //							}
 
-								label = annotation.getId() / 10000; // buf.getLong()
+								label = annotation.getId(); // buf.getLong()
 								// / 10000;
 
 								System.out.println( "RECEIVED LABEL: " + label );
@@ -491,6 +493,8 @@ public class BigCatBinaryMaskVis
 								max[ d ] = start.getMax( d );
 							}
 
+							System.out.println( "START : " + Arrays.toString( min ) + " " + Arrays.toString( max ) );
+
 							final long[] dim = new long[ 3 ];
 
 							for ( int d = 0; d < 3; ++d )
@@ -503,10 +507,10 @@ public class BigCatBinaryMaskVis
 							{
 								i.set( label - 2 );
 							}
-							if ( bdv != null )
-							{
-								bdv.close();
-							}
+//							if ( bdv != null )
+//							{
+//								bdv.close();
+//							}
 							receivedBoundingbox = true;
 
 							startedTransmission = true;
@@ -521,16 +525,17 @@ public class BigCatBinaryMaskVis
 			final SendPaintedLabelsToSolver sendLabels = new SendPaintedLabelsToSolver(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
+					fragments.getVolatileImage( 0, 0 ),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
-					new int[] { 64, 64, 32 },
+					new int[] { 100, 100, 32 },
 					cellDimensions,
 					config,
 					socket,
 					idService,
 					assignment,
 					new File( projectFile ),
-					mergedLabelsDataset );
+					fragmentsPath );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );

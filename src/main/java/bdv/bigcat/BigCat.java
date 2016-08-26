@@ -487,6 +487,7 @@ public class BigCat
 			final SendPaintedLabelsToSolver sendLabels = new SendPaintedLabelsToSolver(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
+					fragments.getVolatileImage( 0, 0 ),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
 					new int[] { 64, 64, 32 },

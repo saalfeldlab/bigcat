@@ -53,7 +53,34 @@ public class H5Utils
 	{
 		final int n = sourceDimensions.numDimensions();
 		for ( int d = 0; d < n; ++d )
+		{
 			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], sourceDimensions.dimension( d ) - offset[ d ] );
+		}
+	}
+
+	static public void cropCellDimensions(
+			final long[] offset,
+			final long[] stop,
+			final int[] cellDimensions,
+			final long[] croppedCellDimensions )
+	{
+		for ( int d = 0; d < stop.length; ++d )
+		{
+			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], stop[ d ] - offset[ d ] );
+		}
+	}
+
+	static public void alignMinWithCellDimensions(
+			final Dimensions sourceDimensions,
+			final int[] cellDimensions,
+			final long[] alignedCellMin )
+	{
+		for ( int d = 0; d < alignedCellMin.length; ++d )
+		{
+			final long val = alignedCellMin[ d ];
+			final long m = val - val % cellDimensions[ d ];
+			alignedCellMin[ d ] = Math.max( m, 0 );
+		}
 	}
 
 	/**
@@ -89,15 +116,21 @@ public class H5Utils
 
 			int i = 0;
 			for ( final LongType t : Views.flatIterable( targetBlock ) )
+			{
 				t.set( targetCell.get( i++ ) );
+			}
 
 			for ( d = 0; d < n; ++d )
 			{
 				offset[ d ] += cellDimensions[ d ];
 				if ( offset[ d ] < dimensions[ d ] )
+				{
 					break;
+				}
 				else
+				{
 					offset[ d ] = 0;
+				}
 			}
 
 //			System.out.println( Util.printCoordinates( offset ) );
@@ -106,7 +139,7 @@ public class H5Utils
 
 		return target;
 	}
-	
+
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
 	 * uint8 dataset.
@@ -127,11 +160,13 @@ public class H5Utils
 		final IHDF5Writer writer = HDF5Factory.open( file );
 		final IHDF5ByteWriter uint8Writer = writer.uint8();
 		if ( !writer.exists( dataset ) )
+		{
 			uint8Writer.createMDArray(
 					dataset,
 					reorder( dimensions ),
 					reorder( cellDimensions ),
 					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+		}
 
 		final long[] offset = new long[ n ];
 		final long[] sourceCellDimensions = new long[ n ];
@@ -142,7 +177,9 @@ public class H5Utils
 			final MDByteArray targetCell = new MDByteArray( reorder( sourceCellDimensions ) );
 			int i = 0;
 			for ( final UnsignedByteType t : Views.flatIterable( sourceBlock ) )
+			{
 				targetCell.set( UnsignedByteType.getCodedSignedByte( t.get() ), i++ );
+			}
 
 			uint8Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
 
@@ -150,9 +187,13 @@ public class H5Utils
 			{
 				offset[ d ] += cellDimensions[ d ];
 				if ( offset[ d ] < source.dimension( d ) )
+				{
 					break;
+				}
 				else
+				{
 					offset[ d ] = 0;
+				}
 			}
 
 //			System.out.println( Util.printCoordinates( offset ) );
@@ -180,11 +221,13 @@ public class H5Utils
 		final IHDF5Writer writer = HDF5Factory.open( file );
 		final IHDF5LongWriter uint64Writer = writer.uint64();
 		if ( !writer.exists( dataset ) )
+		{
 			uint64Writer.createMDArray(
 					dataset,
 					reorder( dimensions ),
 					reorder( cellDimensions ),
 					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+		}
 
 		final long[] offset = new long[ n ];
 		final long[] sourceCellDimensions = new long[ n ];
@@ -195,7 +238,9 @@ public class H5Utils
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;
 			for ( final LongType t : Views.flatIterable( sourceBlock ) )
+			{
 				targetCell.set( t.get(), i++ );
+			}
 
 			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
 
@@ -203,14 +248,149 @@ public class H5Utils
 			{
 				offset[ d ] += cellDimensions[ d ];
 				if ( offset[ d ] < source.dimension( d ) )
+				{
 					break;
+				}
 				else
+				{
 					offset[ d ] = 0;
+				}
 			}
 
 //			System.out.println( Util.printCoordinates( offset ) );
 		}
 		writer.close();
+	}
+
+	static public void saveUnsignedLongIfNotExisiting(
+			final RandomAccessibleInterval< LongType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+		if ( !writer.exists( dataset ) )
+		{
+			uint64Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ),
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+			final long[] offset = new long[ n ];
+			final long[] sourceCellDimensions = new long[ n ];
+			for ( int d = 0; d < n; )
+			{
+				cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+				final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+				final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
+				int i = 0;
+				for ( final LongType t : Views.flatIterable( sourceBlock ) )
+				{
+					targetCell.set( t.get(), i++ );
+				}
+
+				uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+				for ( d = 0; d < n; ++d )
+				{
+					offset[ d ] += cellDimensions[ d ];
+					if ( offset[ d ] < source.dimension( d ) )
+					{
+						break;
+					}
+					else
+					{
+						offset[ d ] = 0;
+					}
+				}
+
+//			System.out.println( Util.printCoordinates( offset ) );
+			}
+		}
+		writer.close();
+	}
+
+	static public void saveUnsignedLongAt(
+			final RandomAccessible< LongType > source,
+			final Interval interval,
+			final Dimensions dataSetSize,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions,
+			final boolean print )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( dataSetSize );
+		final long[] min = Intervals.minAsLongArray( interval );
+		final long[] max = Intervals.maxAsLongArray( interval );
+		alignMinWithCellDimensions( interval, cellDimensions, min );
+		final long[] stop = max.clone();
+		for ( int d = 0; d < stop.length; ++d )
+		{
+			stop[ d ] = Math.min( max[ d ] + 1, dimensions[ d ] );
+		}
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+		if ( !writer.exists( dataset ) )
+		{
+//			System.out.println( "CREATING DATA SET " + dataset );
+//			uint64Writer.createMDArray(
+//					dataset,
+//					reorder( dimensions ),
+//					reorder( cellDimensions ),
+//					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+		}
+
+		final long[] offset = min.clone();
+		final long[] sourceCellDimensions = new long[ n ];
+
+		for ( int d = 0; d < n; ++d )
+		{
+			if ( offset[ d ] > max[ d ] ) { return; }
+		}
+
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( offset, stop, cellDimensions, sourceCellDimensions );
+			if ( print )
+			{
+				System.out.println( Util.printCoordinates( offset ) + " " + Arrays.toString( sourceCellDimensions ) );
+			}
+			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final LongType t : Views.flatIterable( sourceBlock ) )
+			{
+				targetCell.set( t.get(), i++ );
+//				if ( t.get() == 6 )
+//				{
+//					System.out.println( t.get() );
+//				}
+			}
+
+			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < stop[ d ] )
+				{
+					break;
+				}
+				else
+				{
+					offset[ d ] = min[ d ];
+				}
+			}
+
+		}
+		System.out.println( "Closing reader." + print );
+		writer.close();
+		System.out.println( "Closed reader." );
 	}
 
 	/**
@@ -233,38 +413,31 @@ public class H5Utils
 			final int[] cellDimensions )
 	{
 		assert
-				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
-				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
+		labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
+		labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
 
 		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
 		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
 		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
-				new Converter< Pair< LabelMultisetType, LongType >, LongType >()
-				{
-					@Override
-					public void convert(
-							final Pair< LabelMultisetType, LongType > input,
-							final LongType output )
+				( input, output ) -> {
+					final long inputB = input.getB().get();
+					if ( inputB == Label.TRANSPARENT )
 					{
-						final long inputB = input.getB().get();
-						if ( inputB == Label.TRANSPARENT )
-						{
-							output.set( input.getA().entrySet().iterator().next().getElement().id() );
-						}
-						else
-						{
-							output.set( inputB );
-						}
+						output.set( input.getA().entrySet().iterator().next().getElement().id() );
+					}
+					else
+					{
+						output.set( inputB );
 					}
 				};
 
-		final RandomAccessibleInterval< LongType > source =
-				Converters.convert(
-						pairInterval,
-						converter,
-						new LongType() );
+				final RandomAccessibleInterval< LongType > source =
+						Converters.convert(
+								pairInterval,
+								converter,
+								new LongType() );
 
-		saveUnsignedLong( source, file, dataset, cellDimensions );
+				saveUnsignedLong( source, file, dataset, cellDimensions );
 	}
 
 	/**
@@ -290,38 +463,31 @@ public class H5Utils
 			final int[] cellDimensions )
 	{
 		assert
-				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
-				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
+		labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
+		labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
 
 		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
 		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
 		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
-				new Converter< Pair< LabelMultisetType, LongType >, LongType >()
-				{
-					@Override
-					public void convert(
-							final Pair< LabelMultisetType, LongType > input,
-							final LongType output )
+				( input, output ) -> {
+					final long inputB = input.getB().get();
+					if ( inputB == Label.TRANSPARENT )
 					{
-						final long inputB = input.getB().get();
-						if ( inputB == Label.TRANSPARENT )
-						{
-							output.set( assignment.getSegment( input.getA().entrySet().iterator().next().getElement().id() ) );
-						}
-						else
-						{
-							output.set( assignment.getSegment( inputB ) );
-						}
+						output.set( assignment.getSegment( input.getA().entrySet().iterator().next().getElement().id() ) );
+					}
+					else
+					{
+						output.set( assignment.getSegment( inputB ) );
 					}
 				};
 
-		final RandomAccessibleInterval< LongType > source =
-				Converters.convert(
-						pairInterval,
-						converter,
-						new LongType() );
+				final RandomAccessibleInterval< LongType > source =
+						Converters.convert(
+								pairInterval,
+								converter,
+								new LongType() );
 
-		saveUnsignedLong( source, file, dataset, cellDimensions );
+				saveUnsignedLong( source, file, dataset, cellDimensions );
 	}
 
 	/**
@@ -338,8 +504,9 @@ public class H5Utils
 	{
 		final IHDF5LongReader uint64Reader = reader.uint64();
 
-		if ( !reader.exists( dataset ) )
+		if ( !reader.exists( dataset ) ) {
 			return null;
+		}
 
 		final long[] dimensions = reader.object().getDimensions( dataset );
 		if ( !( dimensions.length == 2 && dimensions[ 0 ] == 2 ) )
@@ -364,7 +531,9 @@ public class H5Utils
 					new long[]{ 0, offset } );
 
 			for ( int i = 0; i < block.size( 1 ); ++i )
+			{
 				lut.put( block.get( 0, i ), block.get( 1, i ) );
+			}
 
 		}
 
@@ -423,11 +592,13 @@ public class H5Utils
 	{
 		final IHDF5LongWriter uint64Writer = writer.uint64();
 		if ( !writer.exists( dataset ) )
+		{
 			uint64Writer.createMDArray(
 					dataset,
 					new long[]{ 2, lut.size() },
 					new int[]{ 2, blockSize },
 					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+		}
 
 		final long[] keys = lut.keys();
 		for ( int offset = 0, i = 0; offset < lut.size(); offset += blockSize )
@@ -495,49 +666,68 @@ public class H5Utils
 			final String object,
 			final String attribute )
 	{
-		if ( !reader.exists( object ) )
+		if ( !reader.exists( object ) ) {
 			return null;
+		}
 
-		if ( !reader.object().hasAttribute( object, attribute ) )
+		if ( !reader.object().hasAttribute( object, attribute ) ) {
 			return null;
+		}
 
 		final HDF5DataTypeInformation attributeInfo = reader.object().getAttributeInformation( object, attribute );
 		final Class< ? > type = attributeInfo.tryGetJavaType();
 		System.out.println( "class: " + type );
 		if ( type.isAssignableFrom( long.class ) )
 		{
-			if ( attributeInfo.isSigned() )
+			if ( attributeInfo.isSigned() ) {
 				return ( T )new Long( reader.int64().getAttr( object, attribute ) );
+			}
 			else
+			{
 				return ( T )new Long( reader.uint64().getAttr( object, attribute ) );
+			}
 		}
 		else if ( type.isAssignableFrom( int.class ) )
 		{
-			if ( attributeInfo.isSigned() )
+			if ( attributeInfo.isSigned() ) {
 				return ( T )new Integer( reader.int32().getAttr( object, attribute ) );
+			}
 			else
+			{
 				return ( T )new Integer( reader.uint32().getAttr( object, attribute ) );
+			}
 		}
 		else if ( type.isAssignableFrom( short.class ) )
 		{
-			if ( attributeInfo.isSigned() )
+			if ( attributeInfo.isSigned() ) {
 				return ( T )new Short( reader.int16().getAttr( object, attribute ) );
+			}
 			else
+			{
 				return ( T )new Short( reader.uint16().getAttr( object, attribute ) );
+			}
 		}
 		else if ( type.isAssignableFrom( byte.class ) )
 		{
-			if ( attributeInfo.isSigned() )
+			if ( attributeInfo.isSigned() ) {
 				return ( T )new Byte( reader.int8().getAttr( object, attribute ) );
+			}
 			else
+			{
 				return ( T )new Byte( reader.uint8().getAttr( object, attribute ) );
+			}
 		}
 		else if ( type.isAssignableFrom( double.class ) )
+		{
 			return ( T )new Double( reader.float64().getAttr( object, attribute ) );
+		}
 		else if ( type.isAssignableFrom( float.class ) )
+		{
 			return ( T )new Double( reader.float32().getAttr( object, attribute ) );
-		else if ( type.isAssignableFrom( String.class ) )
+		}
+		else if ( type.isAssignableFrom( String.class ) ) {
 			return ( T )new String( reader.string().getAttr( object, attribute ) );
+		}
 
 		System.out.println( "Reading attributes of type " + attributeInfo + " not yet implemented." );
 		return null;
@@ -596,7 +786,9 @@ public class H5Utils
 			final String attribute )
 	{
 		if ( !writer.exists( object ) )
+		{
 			writer.object().createGroup( object );
+		}
 
 		// TODO Bug in JHDF5, does not save the value most of the time when using the non-deprecated method
 //		writer.uint64().setAttr( object, attribute, value );

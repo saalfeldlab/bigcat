@@ -23,8 +23,10 @@ import com.google.protobuf.ByteString;
 
 import bdv.bigcat.control.SolverMessages.Start.Builder;
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.sparse.ConstantMapSparseRandomAccessible;
 import bdv.util.sparse.MapSparseRandomAccessible;
@@ -34,7 +36,6 @@ import gnu.trove.TLongCollection;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
-import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -62,6 +63,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
@@ -135,6 +137,8 @@ public class SendPaintedLabelsToSolver
 
 	final private RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
 
+	final private RandomAccessibleInterval< VolatileLabelMultisetType > volatileLabelMultisetSource;
+
 	final private RandomAccessibleInterval< LongType > labelSource;
 
 	final private AffineTransform3D labelTransform;
@@ -181,6 +185,7 @@ public class SendPaintedLabelsToSolver
 	public SendPaintedLabelsToSolver(
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LabelMultisetType > labelMultisetSource,
+			final RandomAccessibleInterval< VolatileLabelMultisetType > volatileLabelMultisetSource,
 			final RandomAccessibleInterval< LongType > labelSource,
 			final AffineTransform3D labelTransform,
 			final int[] cellDimensions,
@@ -194,6 +199,7 @@ public class SendPaintedLabelsToSolver
 	{
 		this.viewer = viewer;
 		this.labelMultisetSource = labelMultisetSource;
+		this.volatileLabelMultisetSource = volatileLabelMultisetSource;
 		this.labelSource = labelSource;
 		this.labelTransform = labelTransform;
 		this.cellDimensions = cellDimensions;
@@ -288,105 +294,110 @@ public class SendPaintedLabelsToSolver
 					}
 					else
 					{
+
 						System.out.println( "Task not in conflict..." );
 						annotationTaskQueue.poll();
 
 						activeAnnotationTasks.add( annotationTask );
-
-						final Builder startMessageBuilder = SolverMessages.Start.newBuilder();
-						startMessageBuilder.setUuid( annotationTask.uuid );
-						startMessageBuilder.setId( annotationTask.id );
-						for ( int d = 0; d < 3; ++d )
+						for ( final TLongObjectIterator< ConstantMapSparseRandomAccessible< BitType > > binaryMaskIt = annotationTask.binaryMasks.iterator(); binaryMaskIt.hasNext(); )
 						{
-							startMessageBuilder.addMin( annotationTask.min[ d ] );
-							startMessageBuilder.addMax( annotationTask.max[ d ] );
-						}
+							binaryMaskIt.advance();
+							final Builder startMessageBuilder = SolverMessages.Start.newBuilder();
+							startMessageBuilder.setUuid( annotationTask.uuid );
+							startMessageBuilder.setId( binaryMaskIt.key() );
+							System.out.println( "Preparing message for " + binaryMaskIt.key() );
+							for ( int d = 0; d < 3; ++d )
+							{
+								startMessageBuilder.addMin( annotationTask.min[ d ] );
+								startMessageBuilder.addMax( annotationTask.max[ d ] );
+							}
 
-						for ( final TLongIterator it = annotationTask.newIds.iterator(); it.hasNext(); )
-						{
-							startMessageBuilder.addContainedIds( it.next() );
-						}
+							for ( final TLongIterator it = annotationTask.newIds.iterator(); it.hasNext(); )
+							{
+								startMessageBuilder.addContainedIds( it.next() );
+							}
 //						for ( final TLongIterator it = annotationTask.neighboringIds.iterator(); it.hasNext(); )
 //						{
 //							startMessageBuilder.addNeighboringIds( it.next() );
 //						}
-						for ( final TLongIterator it = annotationTask.invalidatedIds.iterator(); it.hasNext(); )
-						{
-							startMessageBuilder.addCompletelyRemovedIds( it.next() );
-						}
-
-						final SolverMessages.Start startMessage = startMessageBuilder.build();
-
-						socket.send( SolverMessages.Wrapper.newBuilder()
-								.setType( SolverMessages.Type.START )
-								.setStart( startMessage )
-								.build().toByteArray(), ZMQ.SNDMORE );
-
-						final int cellSize = cellDimensions[ 0 ] * cellDimensions[ 1 ] * cellDimensions[ 2 ];
-
-						final byte[] bytes = new byte[ cellSize ];
-
-						final ByteBuffer buffer = ByteBuffer.wrap( bytes );
-
-						final byte ONE = ( byte ) 1;
-						final byte ZERO = ( byte ) 0;
-
-						final long[] currentMin = new long[ 3 ];
-						final long[] currentMax = new long[ 3 ];
-
-						for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > entry : annotationTask.binaryMasks.get( annotationTask.id ).getStore().entrySet() )
-						{
-							final SolverMessages.Annotation.Builder annotationMessageBuilder = SolverMessages.Annotation.newBuilder();
-							annotationMessageBuilder.setId( annotationTask.id );
-							annotationMessageBuilder.setUuid( annotationTask.uuid );
-							boolean sendMessage = false;
-							buffer.rewind();
-
-							final RandomAccessibleInterval< BitType > rai = entry.getValue();
-							rai.min( currentMin );
-							rai.max( currentMax );
-
-							for ( int d = 0; d < currentMin.length; ++d )
+							for ( final TLongIterator it = annotationTask.invalidatedIds.iterator(); it.hasNext(); )
 							{
-								annotationMessageBuilder.addMin( currentMin[ d ] );
-								annotationMessageBuilder.addMax( currentMax[ d ] );
+								startMessageBuilder.addCompletelyRemovedIds( it.next() );
 							}
+
+							final SolverMessages.Start startMessage = startMessageBuilder.build();
+
+							socket.send( SolverMessages.Wrapper.newBuilder()
+									.setType( SolverMessages.Type.START )
+									.setStart( startMessage )
+									.build().toByteArray(), ZMQ.SNDMORE );
+
+							final int cellSize = cellDimensions[ 0 ] * cellDimensions[ 1 ] * cellDimensions[ 2 ];
+
+							final byte[] bytes = new byte[ cellSize ];
+
+							final ByteBuffer buffer = ByteBuffer.wrap( bytes );
+
+							final byte ONE = ( byte ) 1;
+							final byte ZERO = ( byte ) 0;
+
+							final long[] currentMin = new long[ 3 ];
+							final long[] currentMax = new long[ 3 ];
+
+							for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > entry : binaryMaskIt.value().getStore().entrySet() )
+							{
+								final SolverMessages.Annotation.Builder annotationMessageBuilder = SolverMessages.Annotation.newBuilder();
+								annotationMessageBuilder.setId( annotationTask.id );
+								annotationMessageBuilder.setUuid( annotationTask.uuid );
+								boolean sendMessage = false;
+								buffer.rewind();
+
+								final RandomAccessibleInterval< BitType > rai = entry.getValue();
+								rai.min( currentMin );
+								rai.max( currentMax );
+
+								for ( int d = 0; d < currentMin.length; ++d )
+								{
+									annotationMessageBuilder.addMin( currentMin[ d ] );
+									annotationMessageBuilder.addMax( currentMax[ d ] );
+								}
 
 //							final IntervalView< BitType > cell = Views.interval(
 //									target,
 //									currentMin,
 //									currentMax );
-							final IterableInterval< BitType > cell = Views.iterable( entry.getValue() );
-							for ( final BitType bit : cell )
-							{
-								if ( bit.get() )
+								final IterableInterval< BitType > cell = Views.iterable( entry.getValue() );
+								for ( final BitType bit : cell )
 								{
-									buffer.put( ONE );
-									sendMessage = true;
+									if ( bit.get() )
+									{
+										buffer.put( ONE );
+										sendMessage = true;
+									}
+									else
+									{
+										buffer.put( ZERO );
+									}
 								}
-								else
-								{
-									buffer.put( ZERO );
-								}
-							}
 
-							if ( sendMessage )
-							{
-								annotationMessageBuilder.setData( ByteString.copyFrom( bytes ) );
-								System.out.println( "Sending message!" );
+								if ( sendMessage )
+								{
+									annotationMessageBuilder.setData( ByteString.copyFrom( bytes ) );
+									System.out.println( "Sending message! " + binaryMaskIt.key() );
 //								socket.send( bytes, ZMQ.SNDMORE );
-								socket.send( SolverMessages.Wrapper.newBuilder()
-										.setType( SolverMessages.Type.ANNOTATION )
-										.setAnnotation( annotationMessageBuilder )
-										.build().toByteArray(), ZMQ.SNDMORE );
+									socket.send( SolverMessages.Wrapper.newBuilder()
+											.setType( SolverMessages.Type.ANNOTATION )
+											.setAnnotation( annotationMessageBuilder )
+											.build().toByteArray(), ZMQ.SNDMORE );
+								}
 							}
-						}
 
 //						socket.send( "stop" );
-						socket.send( SolverMessages.Wrapper.newBuilder()
-								.setType( SolverMessages.Type.STOP )
-								.setStop( SolverMessages.Stop.newBuilder().setUuid( annotationTask.uuid ).build() )
-								.build().toByteArray(), 0 );
+							socket.send( SolverMessages.Wrapper.newBuilder()
+									.setType( SolverMessages.Type.STOP )
+									.setStop( SolverMessages.Stop.newBuilder().setUuid( annotationTask.uuid ).build() )
+									.build().toByteArray(), 0 );
+						}
 					}
 
 				}
@@ -423,6 +434,7 @@ public class SendPaintedLabelsToSolver
 				final RealRandomAccess< LongType > paintAccess =
 						Views.interpolate( Views.extendValue( labelSource, new LongType( Label.OUTSIDE ) ), new NearestNeighborInterpolatorFactory<>() ).realRandomAccess();
 				setCoordinates( paintAccess, x, y );
+				viewer.setCursor( java.awt.Cursor.getPredefinedCursor( java.awt.Cursor.WAIT_CURSOR ) );
 
 				final LongType label = paintAccess.get();
 				final long labelLong = label.get();
@@ -463,10 +475,7 @@ public class SendPaintedLabelsToSolver
 					FloodFill.fill( source, binaryMaskForLabel, seed, fillLabel, shape, filter );
 					System.out.println( "Stop fill" );
 
-					final long[] min = new long[ 3 ];
-					final long[] max = new long[ 3 ];
 
-					getMinMax( binaryMaskForLabel.constantView(), cellDimensionsLong, min, max );
 					// find "affected" fragments
 					final TLongHashSet labelsWithinMask = new TLongHashSet();
 					final TLongHashSet labelsBorderingMask = new TLongHashSet();
@@ -532,18 +541,39 @@ public class SendPaintedLabelsToSolver
 						for ( final TLongObjectIterator< MapSparseRandomAccessible< BitType > > idAndCc = it.value().iterator(); idAndCc.hasNext(); )
 						{
 							idAndCc.advance();
+							System.out.println( "ADDING " + it.key() + " " + idAndCc.key() );
+//							final long[] mm = new long[ 3 ];
+//							final long[] MM = new long[ 3 ];
+//							Arrays.fill( mm, Long.MAX_VALUE );
+//							Arrays.fill( MM, Long.MIN_VALUE );
+//							for ( final RandomAccessibleInterval< BitType > VV : idAndCc.value().getStore().values() )
+//							{
+//								for ( int d = 0; d < 3; ++d )
+//								{
+//									mm[ d ] = Math.min( mm[ d ], VV.min( d ) );
+//									MM[ d ] = Math.max( MM[ d ], VV.max( d ) );
+//								}
+//							}
+//							BdvFunctions.show( Views.interval( idAndCc.value().constantView(), new FinalInterval( mm, MM ) ), "" + idAndCc.key() );
 							newIdsBinaryMasks.put( idAndCc.key(), idAndCc.value().constantView() );
-							paintNewConnectedComponent(
-									new LongType( idAndCc.key() ),
-									idAndCc.value().constantView(),
-									labelSource,
-									new LongType( Label.OUTSIDE ) );
+//							paintNewConnectedComponent(
+//									new LongType( idAndCc.key() ),
+//									idAndCc.value().constantView(),
+//									labelSource,
+//									new LongType( Label.OUTSIDE ) );
 						}
 					}
 
-					final TLongSet idsToBeDetached = newConnectedComponents.keySet();
-					detachIds( idsToBeDetached, assignment );
+					detachIds( newConnectedComponents.keySet(), assignment );
 					assignment.detachFragment( labelLong );
+
+//					H5Utils.saveUnsignedLongIfNotExisiting(
+//							Converters.convert( labelMultisetSource, ( s, t ) -> {
+//								t.set( s.entrySet().iterator().next().getElement().id() );
+//							}, new LongType() ),
+//							h5File,
+//							mergedLabelsDataset,
+//							h5CellDimensions );
 
 					for ( final TLongObjectIterator< ConstantMapSparseRandomAccessible< BitType > > idAndCc = newIdsBinaryMasks.iterator(); idAndCc.hasNext(); )
 					{
@@ -561,22 +591,68 @@ public class SendPaintedLabelsToSolver
 						final RandomAccessible< Pair< Pair< LabelMultisetType, LongType >, BitType > > labelsAndMask =
 								Views.pair( backgroundAndPainted, mask );
 
-//						for ( final RandomAccessibleInterval< BitType > volume : store.values() ) {
-//
-//							final RandomAccessible< Pair< LabelMultisetType, BitType > > paired = Views.pair( labelMultisetSource, volume );
+						{
+							final HashSet< HashableLongArray > entriesToBeRemoved = new HashSet<>();
+							for ( final Entry< HashableLongArray, RandomAccessibleInterval< BitType > > entry : store.entrySet() )
+							{
+								boolean hasEntries = false;
+								for ( final BitType val : Views.iterable( entry.getValue() ) )
+								{
+									if ( val.get() )
+									{
+										hasEntries = true;
+										break;
+									}
+								}
+								if ( !hasEntries )
+								{
+									entriesToBeRemoved.add( entry.getKey() );
+								}
+							}
+							for ( final HashableLongArray key : entriesToBeRemoved )
+							{
+								store.remove( key );
+							}
+						}
 
-						final RandomAccessible< LongType > converted = Converters.convert( labelsAndMask,
-								( input, output ) -> {
-									output.set( input.getB().get() ? currentLabel : input.getA().getA().entrySet().iterator().next().getElement().id() );
-								},
-								new LongType() );
+						System.out.println( "label=" + currentLabel + ", count=" + store.size() );
+
+						for ( final RandomAccessibleInterval< BitType > volume : store.values() )
+						{
+
+							final RandomAccessible< Pair< LabelMultisetType, BitType > > paired = Views.pair(
+									Views.extendValue( labelMultisetSource, new LabelMultisetType() ),
+									volume );
+
+							final RandomAccessible< LongType > converted = Converters.convert( paired,
+									( input, output ) -> {
+										output.set( input.getB().get() ? currentLabel : input.getA().entrySet().iterator().next().getElement().id() );
+									},
+									new LongType() );
+
+							for ( final VolatileLabelMultisetType vlm : Views.interval( volatileLabelMultisetSource, volume ) )
+							{
+								vlm.setValid( false );
+							}
 
 
+							if ( currentLabel != labelLong )
+							{
+								System.out.println( "Saving volume " + currentLabel + " " + Arrays.toString( Intervals.minAsIntArray( volume ) ) + " " + Arrays.toString( Intervals.dimensionsAsIntArray( volume ) ) );
+							}
+//							H5Utils.saveUnsignedLongAt( converted, volume, labelMultisetSource, h5File, mergedLabelsDataset, h5CellDimensions, currentLabel != labelLong );
+							H5Utils.saveUnsignedLongAt( converted, volume, labelMultisetSource, h5File, mergedLabelsDataset, h5CellDimensions, currentLabel != labelLong );
 //						?????
 //						H5Utils.saveUnsignedLong( Views.offsetInterval( converted, labelMultisetSource ), h5File, mergedLabelsDataset, h5CellDimensions );
-//					}
+						}
 //						paintNewConnectedComponent( new LabelMultisetType(), mask, labelMultisetSource, new LabelMultisetType() );
+						System.out.println( "label=" + currentLabel + ", count=" + store.size() );
 					}
+
+					final long[] min = new long[ 3 ];
+					final long[] max = new long[ 3 ];
+
+					getMinMax( binaryMaskForLabel.constantView(), cellDimensionsLong, min, max );
 
 
 					synchronized ( annotationTaskQueue )
@@ -594,6 +670,7 @@ public class SendPaintedLabelsToSolver
 
 					viewer.requestRepaint();
 
+					viewer.setCursor( java.awt.Cursor.getPredefinedCursor( java.awt.Cursor.DEFAULT_CURSOR ) );
 				}
 			}
 		}
