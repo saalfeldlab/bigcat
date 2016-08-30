@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map.Entry;
 
 import javax.swing.JOptionPane;
 
@@ -17,8 +18,9 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
@@ -35,11 +37,6 @@ import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.SendPaintedLabelsToSolver;
-import bdv.bigcat.control.SolverMessages;
-import bdv.bigcat.control.SolverMessages.Annotation;
-import bdv.bigcat.control.SolverMessages.Start;
-import bdv.bigcat.control.SolverMessages.Type;
-import bdv.bigcat.control.SolverMessages.Wrapper;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
@@ -55,18 +52,15 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.Bdv;
-import bdv.util.BdvFunctions;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongLongHashMap;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -385,138 +379,38 @@ public class BigCat
 
 			final Context context = ZMQ.context( 1 );
 			final Socket socket = context.socket( ZMQ.PUB );
-			final Socket receiver = context.socket( ZMQ.SUB );
 
-			socket.bind( "ipc:///tmp/bigcat/0" );
-			receiver.connect( "ipc:///tmp/bigcat/0" );
-			receiver.subscribe( new byte[ 0 ] );
+			socket.bind( "ipc:///tmp/bigcat/solution-request" );
+
+			final Socket receiver = context.socket( ZMQ.SUB );
+			receiver.connect( "ipc:///tmp/bigcat/solution" );
+			receiver.subscribe( new byte[] {} );
 
 			final Thread t = new Thread( () -> {
 				// TODO Auto-generated method stub
 				System.out.println( "Started thread!" );
-				final String START_STRING = "start";
-				final String STOP_STRING = "stop";
-				boolean startedTransmission = false;
-				boolean receivedBoundingbox = false;
-				long label = -1;
-
-				RandomAccessibleInterval< LongType > img = null;
-				Bdv bdv = null;
-//				new ImageJ();
 
 				while ( !Thread.currentThread().isInterrupted() )
 				{
-					Wrapper message = null;
-					try
+					final byte[] message = receiver.recv();
+					if ( message != null )
 					{
-						message = SolverMessages.Wrapper.parseFrom( receiver.recv() );
-					}
-					catch ( final InvalidProtocolBufferException e )
-					{
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					if ( !( message == null ) )
-					{
-						if ( startedTransmission )
+						final String messageString = new String( message );
+						System.out.println( "Received " + messageString );
+						final JsonObject jsonMessage = new Gson().fromJson( messageString, JsonObject.class );
+						System.out.println( jsonMessage.get( "uuid" ).getAsString() );
+						final TLongLongHashMap lut = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
+						for ( final Entry< String, JsonElement > entry : jsonMessage.get( "assignment" ).getAsJsonObject().entrySet() )
 						{
-							if ( message.getType() == SolverMessages.Type.STOP )
-							{
-								startedTransmission = false;
-								receivedBoundingbox = false;
-								bdv = BdvFunctions.show( img, "" + label );
-
-								bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
-								label = -1;
-//							ImageJFunctions.show( img );
-							}
-							else if ( message.getType() == SolverMessages.Type.ANNOTATION )
-							{
-
-								final Annotation annotation = message.getAnnotation();
-
-								final long[] cellMin = new long[ 3 ];
-								final long[] cellMax = new long[ 3 ];
-
-//							final ByteBuffer buf = ByteBuffer.wrap( message );
-
-//							for ( final long[] m : new long[][] { cellMin, cellMax } )
-//							{
-								for ( int d = 0; d < 3; ++d )
-								{
-									cellMin[ d ] = annotation.getMin( d );
-									cellMax[ d ] = annotation.getMax( d );
-								}
-//							}
-
-								label = annotation.getId(); // buf.getLong()
-								// / 10000;
-
-								System.out.println( "RECEIVED LABEL: " + label );
-
-								final RandomAccess< LongType > ra = img.randomAccess();
-
-								final byte BYTE_ONE = ( byte ) 1;
-
-								final ByteString bs = annotation.getData();
-								int count = 0;
-
-								for ( long z = cellMin[ 2 ]; z <= cellMax[ 2 ]; ++z )
-								{
-									ra.setPosition( z, 2 );
-									for ( long y = cellMin[ 1 ]; y <= cellMax[ 1 ]; ++y )
-									{
-										ra.setPosition( y, 1 );
-										for ( long x = cellMin[ 0 ]; x <= cellMax[ 0 ]; ++x )
-										{
-											ra.setPosition( x, 0 );
-											ra.get().set( bs.byteAt( count++ ) == BYTE_ONE ? label : label - 1 );
-//										if ( buf.get() == BYTE_ONE )
-//										{
-//											ra.get().set( label );
-//										}
-										}
-
-									}
-								}
-
-							}
-
+							lut.put( Long.parseLong( entry.getKey() ), entry.getValue().getAsLong() );
 						}
-						else if ( message.getType() == Type.START )
+						synchronized ( bdv.getViewer() )
 						{
-							final long[] min = new long[ 3 ];
-							final long[] max = new long[ 3 ];
-
-							final Start start = message.getStart();
-
-							for ( int d = 0; d < 3; ++d )
+							synchronized ( assignment )
 							{
-								min[ d ] = start.getMin( d );
-								max[ d ] = start.getMax( d );
+								assignment.initLut( lut );
 							}
-
-							System.out.println( "START : " + Arrays.toString( min ) + " " + Arrays.toString( max ) );
-
-							final long[] dim = new long[ 3 ];
-
-							for ( int d = 0; d < 3; ++d )
-							{
-								dim[ d ] = max[ d ] - min[ d ] + 1;
-							}
-
-							img = Views.translate( ArrayImgs.longs( dim ), min );
-							for ( final LongType i : Views.iterable( img ) )
-							{
-								i.set( label - 2 );
-							}
-//							if ( bdv != null )
-//							{
-//								bdv.close();
-//							}
-							receivedBoundingbox = true;
-
-							startedTransmission = true;
+							bdv.getViewer().requestRepaint();
 						}
 					}
 				}
