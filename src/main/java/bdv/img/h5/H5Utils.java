@@ -356,10 +356,10 @@ public class H5Utils
 		for ( int d = 0; d < n; )
 		{
 			cropCellDimensions( offset, stop, cellDimensions, sourceCellDimensions );
-			if ( print )
-			{
-				System.out.println( Util.printCoordinates( offset ) + " " + Arrays.toString( sourceCellDimensions ) );
-			}
+//			if ( print )
+//			{
+//				System.out.println( Util.printCoordinates( offset ) + " " + Arrays.toString( sourceCellDimensions ) );
+//			}
 			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;

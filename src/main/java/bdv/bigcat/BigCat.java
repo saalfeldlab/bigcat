@@ -5,7 +5,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -18,6 +17,9 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -29,9 +31,15 @@ import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.SendPaintedLabelsToSolver;
+import bdv.bigcat.control.SolverMessages;
+import bdv.bigcat.control.SolverMessages.Annotation;
+import bdv.bigcat.control.SolverMessages.Start;
+import bdv.bigcat.control.SolverMessages.Type;
+import bdv.bigcat.control.SolverMessages.Wrapper;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
@@ -82,6 +90,8 @@ public class BigCat
 	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
 	private FragmentSegmentAssignment assignment;
 	private final String projectFile;
+
+	private String fragmentsPath;
 	private final String paintedLabelsDataset;
 	private final String mergedLabelsDataset;
 	private String fragmentSegmentLutDataset;
@@ -134,7 +144,7 @@ public class BigCat
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawPath, 0, cellDimensions );
 
 		/* fragments */
-		String fragmentsPath = labelsPath + "/" + labelsDataset;
+		fragmentsPath = labelsPath + "/" + labelsDataset;
 		mergedLabelsDataset = labelsPath + "/merged_" + labelsDataset;
 		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
 		fragmentsPath = reader.object().isDataSet( mergedLabelsDataset ) ? mergedLabelsDataset : fragmentsPath;
@@ -290,6 +300,7 @@ public class BigCat
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
+
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
 					idPicker,
@@ -310,6 +321,7 @@ public class BigCat
 					cellDimensions,
 					config);
 
+
 			persistenceController = new LabelPersistenceController(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
@@ -323,6 +335,7 @@ public class BigCat
 					fragmentSegmentLutDataset,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
+
 
 			final LabelFillController fillController = new LabelFillController(
 					bdv.getViewer(),
@@ -360,12 +373,22 @@ public class BigCat
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
+			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+					bdv.getViewer(),
+					fragments.getImage( 0 ),
+					paintedLabels,
+					fragments.getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					new DiamondShape( 1 ),
+					config );
+
 			final Context context = ZMQ.context( 1 );
 			final Socket socket = context.socket( ZMQ.PUB );
 			final Socket receiver = context.socket( ZMQ.SUB );
 
-			socket.bind( "inproc://#1" );
-			receiver.connect( "inproc://#1" );
+			socket.bind( "ipc:///tmp/bigcat/0" );
+			receiver.connect( "ipc:///tmp/bigcat/0" );
 			receiver.subscribe( new byte[ 0 ] );
 
 			final Thread t = new Thread( () -> {
@@ -383,76 +406,97 @@ public class BigCat
 
 				while ( !Thread.currentThread().isInterrupted() )
 				{
-					final byte[] message = receiver.recv();
-					if ( startedTransmission )
+					Wrapper message = null;
+					try
 					{
-						if ( message.length == STOP_STRING.length() && new String( message ).equals( STOP_STRING ) )
+						message = SolverMessages.Wrapper.parseFrom( receiver.recv() );
+					}
+					catch ( final InvalidProtocolBufferException e )
+					{
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					if ( !( message == null ) )
+					{
+						if ( startedTransmission )
 						{
-							startedTransmission = false;
-							receivedBoundingbox = false;
-							bdv = BdvFunctions.show( img, "mask" );
-
-							bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
-							label = -1;
-//							ImageJFunctions.show( img );
-						}
-						else if ( receivedBoundingbox )
-						{
-							final long[] cellMin = new long[ 3 ];
-							final long[] cellMax = new long[ 3 ];
-
-							final ByteBuffer buf = ByteBuffer.wrap( message );
-
-							for ( final long[] m : new long[][] { cellMin, cellMax } )
+							if ( message.getType() == SolverMessages.Type.STOP )
 							{
+								startedTransmission = false;
+								receivedBoundingbox = false;
+								bdv = BdvFunctions.show( img, "" + label );
+
+								bdv.getBdvHandle().getSetupAssignments().getMinMaxGroups().iterator().next().setRange( ( int ) label - 2, ( int ) label + 2 );
+								label = -1;
+//							ImageJFunctions.show( img );
+							}
+							else if ( message.getType() == SolverMessages.Type.ANNOTATION )
+							{
+
+								final Annotation annotation = message.getAnnotation();
+
+								final long[] cellMin = new long[ 3 ];
+								final long[] cellMax = new long[ 3 ];
+
+//							final ByteBuffer buf = ByteBuffer.wrap( message );
+
+//							for ( final long[] m : new long[][] { cellMin, cellMax } )
+//							{
 								for ( int d = 0; d < 3; ++d )
 								{
-									m[ d ] = buf.getLong();
+									cellMin[ d ] = annotation.getMin( d );
+									cellMax[ d ] = annotation.getMax( d );
 								}
-							}
+//							}
 
-							label = buf.getLong() / 10000;
+								label = annotation.getId(); // buf.getLong()
+								// / 10000;
 
-							System.out.println( "RECEIVED LABEL: " + label );
+								System.out.println( "RECEIVED LABEL: " + label );
 
-							final RandomAccess< LongType > ra = img.randomAccess();
+								final RandomAccess< LongType > ra = img.randomAccess();
 
-							final byte BYTE_ONE = ( byte ) 1;
+								final byte BYTE_ONE = ( byte ) 1;
 
-							for ( long z = cellMin[ 2 ]; z <= cellMax[ 2 ]; ++z )
-							{
-								ra.setPosition( z, 2 );
-								for ( long y = cellMin[ 1 ]; y <= cellMax[ 1 ]; ++y )
+								final ByteString bs = annotation.getData();
+								int count = 0;
+
+								for ( long z = cellMin[ 2 ]; z <= cellMax[ 2 ]; ++z )
 								{
-									ra.setPosition( y, 1 );
-									for ( long x = cellMin[ 0 ]; x <= cellMax[ 0 ]; ++x )
+									ra.setPosition( z, 2 );
+									for ( long y = cellMin[ 1 ]; y <= cellMax[ 1 ]; ++y )
 									{
-										ra.setPosition( x, 0 );
-										ra.get().set( buf.get() == BYTE_ONE ? label : label - 1 );
+										ra.setPosition( y, 1 );
+										for ( long x = cellMin[ 0 ]; x <= cellMax[ 0 ]; ++x )
+										{
+											ra.setPosition( x, 0 );
+											ra.get().set( bs.byteAt( count++ ) == BYTE_ONE ? label : label - 1 );
 //										if ( buf.get() == BYTE_ONE )
 //										{
 //											ra.get().set( label );
 //										}
-									}
+										}
 
+									}
 								}
+
 							}
 
 						}
-						else
+						else if ( message.getType() == Type.START )
 						{
 							final long[] min = new long[ 3 ];
 							final long[] max = new long[ 3 ];
 
-							final ByteBuffer buf = ByteBuffer.wrap( message );
+							final Start start = message.getStart();
 
-							for ( final long[] m : new long[][] { min, max } )
+							for ( int d = 0; d < 3; ++d )
 							{
-								for ( int d = 0; d < 3; ++d )
-								{
-									m[ d ] = buf.getLong();
-								}
+								min[ d ] = start.getMin( d );
+								max[ d ] = start.getMax( d );
 							}
+
+							System.out.println( "START : " + Arrays.toString( min ) + " " + Arrays.toString( max ) );
 
 							final long[] dim = new long[ 3 ];
 
@@ -466,17 +510,14 @@ public class BigCat
 							{
 								i.set( label - 2 );
 							}
-							if ( bdv != null )
-							{
-								bdv.close();
-							}
+//							if ( bdv != null )
+//							{
+//								bdv.close();
+//							}
 							receivedBoundingbox = true;
-						}
 
-					}
-					else if ( message.length == START_STRING.length() && new String( message ).equals( START_STRING ) )
-					{
-						startedTransmission = true;
+							startedTransmission = true;
+						}
 					}
 				}
 			} );
@@ -487,17 +528,18 @@ public class BigCat
 			final SendPaintedLabelsToSolver sendLabels = new SendPaintedLabelsToSolver(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
-					fragments.getVolatileImage( 0, 0 ),
+					fragments,
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
-					new int[] { 64, 64, 32 },
+					new int[] { 100, 100, 32 },
 					cellDimensions,
 					config,
 					socket,
 					idService,
 					assignment,
 					new File( projectFile ),
-					mergedLabelsDataset );
+					fragmentsPath,
+					persistenceController );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
@@ -513,6 +555,9 @@ public class BigCat
 
 			bindings.addBehaviourMap( "send", sendLabels.getBehaviourMap() );
 			bindings.addInputTriggerMap( "send", sendLabels.getInputTriggerMap() );
+
+			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
 
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{

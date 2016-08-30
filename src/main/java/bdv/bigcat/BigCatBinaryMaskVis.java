@@ -300,6 +300,7 @@ public class BigCatBinaryMaskVis
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
+
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
 					idPicker,
@@ -320,6 +321,7 @@ public class BigCatBinaryMaskVis
 					cellDimensions,
 					config);
 
+
 			persistenceController = new LabelPersistenceController(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
@@ -333,6 +335,7 @@ public class BigCatBinaryMaskVis
 					fragmentSegmentLutDataset,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
+
 
 			final LabelFillController fillController = new LabelFillController(
 					bdv.getViewer(),
@@ -525,7 +528,7 @@ public class BigCatBinaryMaskVis
 			final SendPaintedLabelsToSolver sendLabels = new SendPaintedLabelsToSolver(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
-					fragments.getVolatileImage( 0, 0 ),
+					fragments,
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
 					new int[] { 100, 100, 32 },
@@ -535,7 +538,8 @@ public class BigCatBinaryMaskVis
 					idService,
 					assignment,
 					new File( projectFile ),
-					fragmentsPath );
+					fragmentsPath,
+					persistenceController );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
