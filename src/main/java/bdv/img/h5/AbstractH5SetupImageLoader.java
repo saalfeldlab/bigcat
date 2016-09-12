@@ -56,7 +56,10 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		else
 			resolution = new double[] { 1, 1, 1 };
 
-		return resolution;
+
+		//return resolution;
+		// hack for CREMI
+		return new double[]{ 4, 4, 40 };
 	}
 
 	public AbstractH5SetupImageLoader(

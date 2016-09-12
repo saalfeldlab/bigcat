@@ -180,19 +180,18 @@ public class H5Utils
 	 * uint64 dataset.
 	 *
 	 * @param source
-	 * @param file
+	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
 	 */
 	static public void saveUnsignedLong(
 			final RandomAccessibleInterval< LongType > source,
-			final File file,
+			final IHDF5Writer writer,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final int n = source.numDimensions();
 		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
-		final IHDF5Writer writer = HDF5Factory.open( file );
 		final IHDF5LongWriter uint64Writer = writer.uint64();
 		if ( !writer.exists( dataset ) )
 			uint64Writer.createMDArray(
@@ -222,9 +221,26 @@ public class H5Utils
 				else
 					offset[ d ] = 0;
 			}
-
-//			System.out.println( Util.printCoordinates( offset ) );
 		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint64 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedLong(
+			final RandomAccessibleInterval< LongType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveUnsignedLong( source, writer, dataset, cellDimensions );
 		writer.close();
 	}
 
@@ -628,6 +644,64 @@ public class H5Utils
 		final T t = loadAttribute( reader, object, attribute );
 		reader.close();
 		return t;
+	}
+
+	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param writer
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final IHDF5Writer writer,
+			final String object,
+			final String attribute )
+	{
+		if ( !writer.exists( object ) )
+			writer.object().createGroup( object );
+
+		writer.float64().setArrayAttr( object, attribute, values );
+	}
+
+	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param file
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final File file,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveAttribute( values, writer, object, attribute );
+		writer.close();
+	}
+
+	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param filePath
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final String filePath,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( filePath );
+		saveAttribute( values, writer, object, attribute );
+		writer.close();
 	}
 
 	/**
