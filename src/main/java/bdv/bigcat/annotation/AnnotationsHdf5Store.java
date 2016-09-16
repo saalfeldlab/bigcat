@@ -71,6 +71,8 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 				return new PreSynapticSite(id, pos, comment);
 			case "postsynaptic_site":
 				return new PostSynapticSite(id, pos, comment);
+			case "skeleton_node":
+				return new SkeletonNode(id, pos, comment);
 			default:
 				throw new Exception("annotation type " + type + " is unknown");
 			}
@@ -96,6 +98,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 
 			readAnnotations(annotations, reader, "all", factory);
 			readPrePostPartners(annotations, reader);
+			readSkeletonParents(annotations, reader);
 
 		} else {
 
@@ -218,6 +221,34 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		}
 	}
 
+	private void readSkeletonParents(final Annotations annotations, final IHDF5Reader reader) {
+
+		final MDLongArray parents;
+		try {
+			parents = reader.uint64().readMDArray(this.groupname + "/skeleton_node/parents");
+		} catch (final HDF5SymbolTableException e) {
+			return;
+		}
+
+		for (int i = 0; i < parents.dimensions()[0]; i++) {
+			final long childId = parents.get(i, 0);
+			final long parentId = parents.get(i, 1);
+			final SkeletonNode child = (SkeletonNode)annotations.getById(childId);
+			final SkeletonNode parent = (SkeletonNode)annotations.getById(parentId);
+			
+			if (child == null) {
+				System.err.println("Node with id " + childId + " is not a skeleton node (as expected)");
+				continue;
+			}
+			if (parent == null) {
+				System.err.println("Node with id " + parentId + " is not a skeleton node (as expected)");
+				continue;
+			}
+			child.setParent(parent);
+			parent.addChild(child);
+		}
+	}
+
 	@Override
 	public void write(final Annotations annotations) {
 
@@ -249,6 +280,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			@Override
 			public void visit(final PostSynapticSite postSynapticSite) {
 			}
+			
+			@Override
+			public void visit(final SkeletonNode skeletonNode) {
+			}
 		}
 
 		final Counter counter = new Counter();
@@ -263,11 +298,13 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			String[] comments = new String[counter.numComments];
 			long[] commentTargets = new long[counter.numComments];
 			long[][] partners  = new long[counter.numPartners][2];
+			long[][] parents = new long[counter.numPartners][2];
 
 			private int annotationIndex = 0;
 			private int typeIndex = 0;
 			private int commentIndex = 0;
 			private int partnerIndex = 0;
+			private int parentIndex = 0;
 
 			private void fillPosition(final float[] data, final Annotation a) {
 
@@ -311,6 +348,17 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 				types[typeIndex] = "postsynaptic_site";
 				typeIndex++;
 			}
+
+			@Override
+			public void visit(final SkeletonNode skeletonNode) {
+				if (skeletonNode.getParent() != null) {
+					parents[parentIndex][0] = skeletonNode.getId();
+					parents[parentIndex][1] = skeletonNode.getParent().getId();
+					parentIndex++;
+				}
+				types[typeIndex] = "skeleton_node";
+				typeIndex++;
+			}
 		}
 
 		final AnnotationsCrawler crawler = new AnnotationsCrawler();
@@ -333,6 +381,11 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		} catch (final HDF5SymbolTableException e) {
 			// already existed
 		}
+		try {
+			writer.createGroup(groupname + "/skeleton_node");
+		} catch (final HDF5SymbolTableException e) {
+			// already existed
+		}
 
 		writer.string().setAttr("/", "file_format", "0.2");
 
@@ -349,6 +402,8 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		writer.uint64().writeArray(groupname + "/comments/target_ids", crawler.commentTargets);
 
 		writer.uint64().writeMatrix(groupname + "/presynaptic_site/partners", crawler.partners);
+
+		writer.uint64().writeMatrix(groupname + "/skeleton_node/parents", crawler.parents);
 
 		// delete old datasets and groups
 		if (fileFormat == 0.0) {

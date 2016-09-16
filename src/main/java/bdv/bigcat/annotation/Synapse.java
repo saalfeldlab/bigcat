@@ -38,6 +38,11 @@ public class Synapse extends Annotation {
 		visitor.visit(this);
 	}
 	
+	@Override
+	public String toString() {
+		return this.getClass().getName();
+	}
+	
 	private PostSynapticSite preSynapticPartner;
 	private List< PostSynapticSite > postSynapticPartners = new LinkedList< PostSynapticSite >();
 }

@@ -17,6 +17,7 @@ import bdv.bigcat.annotation.AnnotationVisitor;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
+import bdv.bigcat.annotation.SkeletonNode;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.viewer.ViewerPanel;
@@ -218,6 +219,46 @@ public class AnnotationsOverlay implements OverlayRenderer
 						2 * radius + 1,
 						2 * radius + 1 );
 			}
+
+			@Override
+			public void visit(SkeletonNode skeletonNode) {
+				
+				RealPoint displayPosition = new RealPoint(3);
+				viewerTransform.apply(skeletonNode.getPosition(), displayPosition);
+
+				setAlpha(displayPosition.getDoublePosition(2));
+
+				if (pass == 0) {
+					final int radius = 10;
+					if (skeletonNode == controller.getSelectedAnnotation())
+						g2d.setPaint(skeletonNodeColor.brighter().brighter());
+					else
+						g2d.setPaint(skeletonNodeColor);
+					g2d.setStroke(new BasicStroke(2.0f));
+					g2d.fillOval(
+							Math.round(displayPosition.getFloatPosition(0) - radius),
+							Math.round(displayPosition.getFloatPosition(1) - radius),
+							2 * radius + 1,
+							2 * radius + 1 );
+					g2d.setPaint(skeletonNodeColor.darker());
+					g2d.drawOval(
+							Math.round(displayPosition.getFloatPosition(0) - radius),
+							Math.round(displayPosition.getFloatPosition(1) - radius),
+							2 * radius + 1,
+							2 * radius + 1 );
+				}
+
+				if (skeletonNode.getParent() != null) {
+
+					RealPoint parentDisplayPosition = new RealPoint(3);
+					viewerTransform.apply(skeletonNode.getParent().getPosition(), parentDisplayPosition);
+
+					double px = parentDisplayPosition.getDoublePosition(0);
+					double py = parentDisplayPosition.getDoublePosition(1);
+					
+					drawArrow(g2d, px, py, displayPosition.getDoublePosition(0), displayPosition.getDoublePosition(1), pass);
+				}
+			}
 		}
 		
 		for (int pass = 0; pass < 3; pass++) {
@@ -276,4 +317,5 @@ public class AnnotationsOverlay implements OverlayRenderer
 	final static private Color synapseColor = new Color(155, 13, 75);
 	final static private Color preSynapticSiteColor = new Color(75, 13, 155);
 	final static private Color postSynapticSiteColor = new Color(75, 155, 13);
+	final static private Color skeletonNodeColor = new Color(13, 155, 75);
 }

@@ -33,6 +33,8 @@ public abstract class Annotation {
 		visitor.visit(this);
 	}
 	
+	public abstract String toString();
+	
 	private long id;
 	private RealPoint pos;
 	private String comment;

@@ -43,6 +43,7 @@ import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.AnnotationsStore;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
+import bdv.bigcat.annotation.SkeletonNode;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationsOverlay;
 import bdv.bigcat.ui.AnnotationsWindow;
@@ -122,6 +123,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "control shift button1").register();
 		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "control shift button3").register();
 		new AddSynapseAnnotation("add synapse annotation", "control shift button2").register();
+		new AddSkeletonNodeAnnotation("add skeleton node annotation", "SPACE button1").register();
 
 		// key bindings
 		new ChangeComment("change comment", "control C").register();
@@ -340,6 +342,34 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 			selection.clear();
 			selection.add(site);
+		}
+	}
+
+	private class AddSkeletonNodeAnnotation extends SelfRegisteringBehaviour implements ClickBehaviour {
+		public AddSkeletonNodeAnnotation(final String name, final String... defaultTriggers) {
+			super(name, defaultTriggers);
+		}
+
+		@Override
+		public void click(final int x, final int y) {
+
+			final RealPoint pos = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(x, y, pos);
+
+			System.out.println("Adding skeleton node at " + pos);
+
+			final SkeletonNode node = new SkeletonNode(idService.next(), pos, "");
+
+			Annotation active = selection.getLastAdded();
+			if (active != null && active instanceof SkeletonNode) {
+				SkeletonNode parent = (SkeletonNode)active;
+				node.setParent(parent);
+				parent.addChild(node);
+			}
+			annotations.add(node);
+
+			selection.clear();
+			selection.add(node);
 		}
 	}
 

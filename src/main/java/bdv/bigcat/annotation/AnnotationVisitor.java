@@ -7,4 +7,5 @@ public abstract class AnnotationVisitor {
 	public abstract void visit(Synapse synapse);
 	public abstract void visit(PreSynapticSite preSynapticSite);
 	public abstract void visit(PostSynapticSite postSynapticSite);
+	public abstract void visit(SkeletonNode skeletonNode);
 }

@@ -22,5 +22,10 @@ public class PostSynapticSite extends Annotation {
 		visitor.visit(this);	
 	}
 	
+	@Override
+	public String toString() {
+		return this.getClass().getName();
+	}
+	
 	private PreSynapticSite partner;
 }

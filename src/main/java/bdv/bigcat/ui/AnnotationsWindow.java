@@ -343,13 +343,7 @@ public class AnnotationsWindow extends JFrame implements
 
 	private String toTypeString(final Annotation a) {
 
-		if (a instanceof Synapse)
-			return "synapse";
-		if (a instanceof PreSynapticSite)
-			return "presynaptic_site";
-		if (a instanceof PostSynapticSite)
-			return "postsynaptic_site";
-		throw new RuntimeException("unknown annotation class " + a.getClass());
+		return a.toString();
 	}
 
 	@Override
