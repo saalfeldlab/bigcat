@@ -260,6 +260,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 
 			public int numComments = 0;
 			public int numPartners = 0;
+			public int numSkeletonNodes = 0;
 
 			@Override
 			public void visit(final Annotation annotation) {
@@ -280,9 +281,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			@Override
 			public void visit(final PostSynapticSite postSynapticSite) {
 			}
-			
+
 			@Override
 			public void visit(final SkeletonNode skeletonNode) {
+				numSkeletonNodes++;
 			}
 		}
 
@@ -298,7 +300,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			String[] comments = new String[counter.numComments];
 			long[] commentTargets = new long[counter.numComments];
 			long[][] partners  = new long[counter.numPartners][2];
-			long[][] parents = new long[counter.numPartners][2];
+			long[][] parents = new long[counter.numSkeletonNodes][2];
 
 			private int annotationIndex = 0;
 			private int typeIndex = 0;
