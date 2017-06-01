@@ -21,8 +21,8 @@ import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
-import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
@@ -32,6 +32,7 @@ import bdv.labels.labelset.Multiset;
 import bdv.util.IdService;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.view.Views;
@@ -152,7 +153,7 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 	protected FragmentSegmentAssignment assignment;
 
 	/** color generator for composition of loaded segments and canvas */
-	protected ModalGoldenAngleSaturatedARGBStream colorStream;
+	protected ModalGoldenAngleSaturatedHighlightingARGBStream colorStream;
 
 	/** loaded segments */
 	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
@@ -177,6 +178,24 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		return bdv;
 	}
 
+	public void highlight( final TLongHashSet highlights )
+	{
+		synchronized ( colorStream )
+		{
+			colorStream.highlight( highlights );
+		}
+		getBigDataViewer().getViewer().requestRepaint();
+	}
+
+	public void highlight( final long[] highlights )
+	{
+		synchronized ( colorStream )
+		{
+			colorStream.highlight( highlights );
+		}
+		getBigDataViewer().getViewer().requestRepaint();
+	}
+
 	public static void main( final String[] args ) throws Exception
 	{
 		final String[] argv = new String[] {
@@ -198,6 +217,20 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		final BigCatViewerJan< Parameters > bigCat = new BigCatViewerJan<>();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
+		final Thread t = new Thread( () -> {
+			try
+			{
+				Thread.sleep( 20000 );
+			}
+			catch ( final InterruptedException e )
+			{
+				e.printStackTrace();
+				return;
+			}
+			System.out.println( "HIGHLIGHTING!" );
+			bigCat.highlight( new long[] { 1770, 1771, 1772, 1777, 1782, 748566, 748567, 748568, 748569, 748570, 748571 } );
+		} );
+		t.start();
 		return bigCat;
 	}
 
@@ -295,7 +328,7 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 //			assignment.initLut( lut );
 
 		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
+		colorStream = new ModalGoldenAngleSaturatedHighlightingARGBStream();
 		colorStream.setAlpha( 0x20 );
 
 //		reader.close();
