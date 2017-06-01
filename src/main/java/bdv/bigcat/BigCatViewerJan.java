@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
@@ -13,32 +16,148 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
+import bdv.AbstractViewerSetupImgLoader;
 import bdv.BigDataViewer;
+import bdv.ViewerSetupImgLoader;
+import bdv.bigcat.BigCatViewerJan.DatasetSpecification.DataType;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.control.TranslateZController;
-import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
+import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.bigcat.ui.highlighting.AbstractHighlightingARGBStream;
 import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
-import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset;
-import bdv.util.IdService;
+import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.spimdata.SequenceDescriptionMinimal;
+import bdv.spimdata.SpimDataMinimal;
+import bdv.tools.brightness.ConverterSetup;
+import bdv.tools.brightness.RealARGBColorConverterSetup;
+import bdv.viewer.DisplayMode;
+import bdv.viewer.NavigationActions;
+import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerFrame;
+import bdv.viewer.ViewerOptions;
+import bdv.viewer.ViewerPanel;
+import bdv.viewer.render.AccumulateProjectorFactory;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.set.hash.TLongHashSet;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistration;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
+import mpicbg.spim.data.sequence.TimePoints;
+import net.imglib2.display.ScaledARGBConverter;
+import net.imglib2.display.ScaledARGBConverter.ARGB;
+import net.imglib2.display.ScaledARGBConverter.VolatileARGB;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.view.Views;
+import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.volatiles.VolatileARGBType;
 
 public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 {
+
+	public static class DatasetSpecification
+	{
+
+		public static enum DataType
+		{
+			RAW, LABEL
+		};
+
+		private DataType dataType;
+
+		private double[] resolution;
+
+		private double[] offset;
+
+		public DataType dataType()
+		{
+			return dataType;
+		}
+
+		public double[] resolution()
+		{
+			return resolution;
+		}
+
+		public double[] offset()
+		{
+			return offset;
+		}
+
+		public DatasetSpecification dataType( final DataType dataType )
+		{
+			this.dataType = dataType;
+			return this;
+		}
+
+		public DatasetSpecification resolution( final double[] resolution )
+		{
+			this.resolution = resolution;
+			return this;
+		}
+
+		public DatasetSpecification offset( final double[] offset )
+		{
+			this.offset = offset;
+			return this;
+		}
+
+	}
+
+	public static class H5Specification extends DatasetSpecification
+	{
+		private String path;
+
+		private String dataset;
+
+		private int[] cellSize;
+
+		public String path()
+		{
+			return path;
+		}
+
+		public String dataset()
+		{
+			return dataset;
+		}
+
+		public int[] cellSize()
+		{
+			return cellSize;
+		}
+
+		public H5Specification path( final String path )
+		{
+			this.path = path;
+			return this;
+		}
+
+		public H5Specification dataset( final String dataset )
+		{
+			this.dataset = dataset;
+			return this;
+		}
+
+		public H5Specification cellSize( final int[] cellSize )
+		{
+			this.cellSize = cellSize;
+			return this;
+		}
+
+	}
+
 	static public class Parameters
 	{
 		@Parameter( names = { "--raw-file", "-r" }, description = "Path to raw hdf5" )
@@ -143,26 +262,14 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 	// 64, 64, 8
 	// };
 
-	/** global ID generator */
-	protected IdService idService;
-
-	/** raw pixels (image data) */
-	final protected ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
-
-	/** fragment to segment assignment */
-	protected FragmentSegmentAssignment assignment;
-
-	/** color generator for composition of loaded segments and canvas */
-	protected ModalGoldenAngleSaturatedHighlightingARGBStream colorStream;
-
 	/** loaded segments */
-	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
+	final protected HashMap< DatasetSpecification, AbstractViewerSetupImgLoader< ?, ? > > loaders = new HashMap<>();
 
-	/** compositions of labels and canvas that are displayed */
-	final protected ArrayList< AbstractARGBConvertedLabelsSource > convertedLabels = new ArrayList<>();
+	BigDataViewer bdv;
 
-	/** main BDV instance */
-	protected BigDataViewer bdv;
+	ViewerFrame frame;
+
+	ViewerPanel viewer;
 
 	/** controllers */
 	protected InputTriggerConfig config;
@@ -173,27 +280,57 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 
 	protected double[] offset = null;
 
+	private final ArrayList< DatasetSpecification > datasetSpecifications;
+
+	private final HashMap< DatasetSpecification, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
+
+	private final HashMap< DatasetSpecification, SetCache > cacheLoaders = new HashMap<>();
+
+	private final HashMap< DatasetSpecification, ARGBStream > colorStreams = new HashMap<>();
+
 	public BigDataViewer getBigDataViewer()
 	{
 		return bdv;
 	}
 
-	public void highlight( final TLongHashSet highlights )
+	public ViewerFrame getViewerFrame()
 	{
-		synchronized ( colorStream )
-		{
-			colorStream.highlight( highlights );
-		}
-		getBigDataViewer().getViewer().requestRepaint();
+		return frame;
 	}
 
-	public void highlight( final long[] highlights )
+	public ViewerPanel getViewer()
 	{
-		synchronized ( colorStream )
+		return viewer;
+	}
+
+	public void highlight( final DatasetSpecification spec, final TLongHashSet highlights )
+	{
+
+		final ARGBStream stream = colorStreams.get( spec );
+
+		if ( stream == null || !( stream instanceof AbstractHighlightingARGBStream ) )
+			return;
+
+		synchronized ( stream )
 		{
-			colorStream.highlight( highlights );
+			( ( AbstractHighlightingARGBStream ) stream ).highlight( highlights );
 		}
-		getBigDataViewer().getViewer().requestRepaint();
+		getViewer().requestRepaint();
+	}
+
+	public void highlight( final DatasetSpecification spec, final long[] highlights )
+	{
+
+		final ARGBStream stream = colorStreams.get( spec );
+
+		if ( stream == null || !( stream instanceof AbstractHighlightingARGBStream ) )
+			return;
+
+		synchronized ( stream )
+		{
+			( ( AbstractHighlightingARGBStream ) stream ).highlight( highlights );
+		}
+		getViewer().requestRepaint();
 	}
 
 	public static void main( final String[] args ) throws Exception
@@ -208,58 +345,67 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		final Parameters params = new Parameters();
 		new JCommander( params, argv );
 		params.init();
-		run( params );
+
+		final int[] cellSize = { 145, 53, 5 };
+
+		final DatasetSpecification raw = new H5Specification()
+				.cellSize( cellSize )
+				.path( params.rawFile )
+				.dataset( params.rawDataset )
+				.resolution( params.resolutionArray )
+				.offset( null )
+				.dataType( DataType.RAW );
+
+		final DatasetSpecification gt = new H5Specification()
+				.cellSize( cellSize )
+				.path( params.groundTruthFile )
+				.dataset( params.groundTruthDataset )
+				.resolution( params.resolutionArray )
+				.offset( null )
+				.dataType( DataType.LABEL );
+
+		final DatasetSpecification gt2 = new H5Specification()
+				.cellSize( cellSize )
+				.path( params.groundTruthFile )
+				.dataset( params.groundTruthDataset )
+				.resolution( params.resolutionArray )
+				.offset( null )
+				.dataType( DataType.LABEL );
+
+		final DatasetSpecification gt3 = new H5Specification()
+				.cellSize( cellSize )
+				.path( params.groundTruthFile )
+				.dataset( params.groundTruthDataset )
+				.resolution( params.resolutionArray )
+				.offset( null )
+				.dataType( DataType.LABEL );
+
+		final DatasetSpecification prediction = new H5Specification()
+				.cellSize( cellSize )
+				.path( params.predictionFile )
+				.dataset( params.predictionDataset )
+				.resolution( params.resolutionArray )
+				.offset( params.offsetArray )
+				.dataType( DataType.LABEL );
+
+		run( raw, gt, gt2, gt3, prediction );
 	}
 
-	public static BigCatViewerJan< Parameters > run( final Parameters params ) throws Exception
+	public static BigCatViewerJan< Parameters > run( final DatasetSpecification... specs ) throws Exception
 	{
 
-		final BigCatViewerJan< Parameters > bigCat = new BigCatViewerJan<>();
-		bigCat.init( params );
-		bigCat.setupBdv( params );
-//		final Thread t = new Thread( () -> {
-//			try
-//			{
-//				Thread.sleep( 20000 );
-//			}
-//			catch ( final InterruptedException e )
-//			{
-//				e.printStackTrace();
-//				return;
-//			}
-//			System.out.println( "HIGHLIGHTING!" );
-//			bigCat.highlight( new long[] { 1770, 1771, 1772, 1777, 1782, 748566, 748567, 748568, 748569, 748570, 748571 } );
-//		} );
-//		t.start();
+
+		final BigCatViewerJan< Parameters > bigCat = new BigCatViewerJan<>( Arrays.asList( specs ) );
+		bigCat.initData();
+		bigCat.setupBdv();
 		return bigCat;
 	}
 
-	public BigCatViewerJan() throws Exception
+	public BigCatViewerJan( final List< DatasetSpecification > datasetSpecifications ) throws Exception
 	{
+		this.datasetSpecifications = new ArrayList<>( datasetSpecifications );
 		Util.initUI();
 		this.config = getInputTriggerConfig();
-	}
-
-	/**
-	 * Initialize BigCatViewer, order is important because individual initializers depend on previous members initialized.
-	 *
-	 * <ol>
-	 * <li>Load raw,</li>
-	 * <li>setup IdService,</li>
-	 * <li>setup assignments,</li>
-	 * <li>load labels and create label+canvas compositions.</li>
-	 * </ol>
-	 *
-	 * @param params
-	 * @throws IOException
-	 */
-	protected void init( final P params ) throws IOException
-	{
-		initRaw( params );
-//		initIdService( params );
-		initAssignments( params );
-		initGroundTruth( params );
-		initPrediction( params );
 	}
 
 	/**
@@ -268,112 +414,50 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 	 * @param params
 	 * @throws IOException
 	 */
-	protected void initRaw( final P params ) throws IOException
+	protected void initData() throws IOException
 	{
-		System.out.println( "Opening raw from " + params.rawFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.rawFile );
 
-		/* raw pixels */
-		final String raw = params.rawDataset;
-		this.resolution = params.resolutionArray == null ? readResolution( reader, raw ) : params.resolutionArray;
-		if ( reader.exists( raw ) )
+		final ArrayList< DatasetSpecification > specs = this.datasetSpecifications;
+
+		for ( int i = 0; i < specs.size(); ++i )
 		{
-			final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions, this.resolution, new double[ this.resolution.length ] );
-			raws.add( rawLoader );
+			final DatasetSpecification spec = specs.get( i );
+
+			if ( spec instanceof H5Specification )
+			{
+				final H5Specification h5spec = ( H5Specification ) spec;
+				final String path = h5spec.path;
+				final String dataset = h5spec.dataset;
+				System.out.println( "Opening raw from " + path );
+				final IHDF5Reader reader = HDF5Factory.open( path );
+
+				/* raw pixels */
+				final double[] resolution = spec.resolution == null ? readResolution( reader, dataset ) : spec.resolution;
+				final double[] offset = spec.offset == null ? readOffset( reader, dataset ) : spec.offset;
+				if ( reader.exists( dataset ) )
+				{
+					final int currentSetupId = setupId++;
+					final AbstractViewerSetupImgLoader< ?, ? > loader;
+					if ( spec.dataType.equals( DataType.RAW ) )
+					{
+						loader = new H5UnsignedByteSetupImageLoader( reader, dataset, currentSetupId, h5spec.cellSize(), resolution, offset );
+						composites.put( spec, new CompositeCopy< ARGBType >() );
+					}
+					else
+					{
+						loader = new H5LabelMultisetSetupImageLoader( reader, null, dataset, currentSetupId, h5spec.cellSize(), resolution, offset );
+						final ModalGoldenAngleSaturatedHighlightingARGBStream colorStream = new ModalGoldenAngleSaturatedHighlightingARGBStream();
+						colorStream.setAlpha( 0x20 );
+						this.colorStreams.put( h5spec, colorStream );
+						composites.put( spec, new ARGBCompositeAlphaYCbCr() );
+					}
+
+					loaders.put( spec, loader );
+				}
+				else
+					System.out.println( "no dataset '" + dataset + "' found" );
+			}
 		}
-		else
-			System.out.println( "no raw dataset '" + raw + "' found" );
-	}
-
-	/**
-	 * Initialize ID service.
-	 *
-	 * @param params
-	 * @throws IOException
-	 */
-//	protected void initIdService( final P params ) throws IOException
-//	{
-//		/* id */
-//		idService = new LocalIdService();
-//
-//		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
-//
-//		long maxId = 0;
-//		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
-//
-//		reader.close();
-//
-//		if ( nextIdObject == null )
-//			for ( final H5LabelMultisetSetupImageLoader labelLoader : labels )
-//				maxId = maxId( labelLoader, maxId );
-//		else
-//			maxId = nextIdObject.longValue() - 1;
-//
-//		idService.invalidate( maxId );
-//	}
-
-	/**
-	 * Initialize assignments.
-	 *
-	 * @param params
-	 */
-	protected void initAssignments( final P params )
-	{
-//		final IHDF5Reader reader = HDF5Factory.open( params.groundTruthFile );
-
-		/* fragment segment assignment */
-		assignment = new FragmentSegmentAssignment( idService );
-//		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, "", 1024 );
-//		if ( lut != null )
-//			assignment.initLut( lut );
-
-		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedHighlightingARGBStream();
-		colorStream.setAlpha( 0x20 );
-
-//		reader.close();
-	}
-
-	/**
-	 * Load labels and create label+canvas compositions.
-	 *
-	 * @param params
-	 * @throws IOException
-	 */
-	protected void initPrediction( final P params ) throws IOException
-	{
-		System.out.println( "Opening labels from " + params.predictionFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.predictionFile );
-
-		/* labels */
-		final String label = params.predictionDataset;
-		if ( reader.exists( label ) ) {
-			offset = params.offsetArray == null ? readOffset( reader, label ) : params.offsetArray;
-			System.out.println( "Using offset " + Arrays.toString( offset ) );
-			readLabels( reader, label, resolution, offset );
-		}
-		else
-			System.out.println( "no label dataset '" + label + "' found" );
-	}
-
-	/**
-	 * Load labels and create label+canvas compositions.
-	 *
-	 * @param params
-	 * @throws IOException
-	 */
-	protected void initGroundTruth( final P params ) throws IOException
-	{
-		System.out.println( "Opening labels from " + params.groundTruthFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.groundTruthFile );
-
-
-		/* labels */
-		final String groundTruth = params.groundTruthDataset;
-		if ( reader.exists( groundTruth ) )
-			readLabels( reader, groundTruth, this.resolution, new double[ this.resolution.length ] );
-		else
-			System.out.println( "no ground truth dataset '" + groundTruth + "' found" );
 	}
 
 	/**
@@ -391,168 +475,47 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 	 * @param params
 	 * @throws Exception
 	 */
-	protected void setupBdv( final P params ) throws Exception
+	protected void setupBdv() throws Exception
 	{
 		/* composites */
-		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList<>();
-		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
-		for ( final H5UnsignedByteSetupImageLoader loader : raws )
-		{
-			composites.add( new CompositeCopy< ARGBType >() );
-			cacheLoaders.add( loader );
-		}
-		for ( final H5LabelMultisetSetupImageLoader loader : labels )
-		{
-			composites.add( new ARGBCompositeAlphaYCbCr() );
-			cacheLoaders.add( loader );
-		}
+//		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList<>();
+//		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
+//		for ( final H5UnsignedByteSetupImageLoader loader : raws )
+//		{
+//			composites.add( new CompositeCopy< ARGBType >() );
+//			cacheLoaders.add( loader );
+//		}
+//		for ( final H5LabelMultisetSetupImageLoader loader : labels )
+//		{
+//			composites.add( new ARGBCompositeAlphaYCbCr() );
+//			cacheLoaders.add( loader );
+//		}
 
 		final String windowTitle = "BigCAT";
 
-		bdv = Util.createViewer(
-				windowTitle,
-				raws,
-				convertedLabels,
-				cacheLoaders,
-				composites,
-				config );
+		bdv = createViewer( windowTitle, this.datasetSpecifications, loaders, colorStreams, composites, config );
 
-		bdv.getViewerFrame().setVisible( true );
+		frame = bdv.getViewerFrame();
 
-		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
+		viewer = frame.getViewerPanel();
 
-//		final SelectionController selectionController;
-//		final LabelMultiSetIdPicker idPicker;
+		viewer.setDisplayMode( DisplayMode.FUSED );
 
-//		if ( labels.size() > 0 )
-//		{
-//			/* TODO fix ID picker to pick from the top most label canvas pair */
-//			idPicker = new LabelMultiSetIdPicker(
-//					bdv.getViewer(),
-//					RealViews.affineReal(
-//							Views.interpolate(
-//									Views.extendValue(
-//											labels.get( 0 ).getImage( 0 ),
-//											new LabelMultisetType() ),
-//									new NearestNeighborInterpolatorFactory< LabelMultisetType >() ),
-//							labels.get( 0 ).getMipmapTransforms()[ 0 ] ) );
-//
-////			selectionController = new SelectionController(
-////					bdv.getViewer(),
-////					idPicker,
-////					colorStream,
-////					idService,
-////					assignment,
-////					config,
-////					bdv.getViewerFrame().getKeybindings(),
-////					config);
-////
-////			final MergeController mergeController = new MergeController(
-////					bdv.getViewer(),
-////					idPicker,
-////					selectionController,
-////					assignment,
-////					config,
-////					bdv.getViewerFrame().getKeybindings(),
-////					config);
-////
-////			/* mark segments as finished */
-////			final ConfirmSegmentController confirmSegment = new ConfirmSegmentController(
-////					bdv.getViewer(),
-////					selectionController,
-////					assignment,
-////					colorStream,
-////					colorStream,
-////					config,
-////					bdv.getViewerFrame().getKeybindings() );
-//
-//			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
-//			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
-//
-//			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
-//			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
-//
-//		}
-//		else
-//		{
-//			selectionController = null;
-//			idPicker = null;
-//		}
+		frame.setVisible( true );
+
+		NavigationActions.installActionBindings( frame.getKeybindings(), viewer, config );
+
+		final TriggerBehaviourBindings bindings = frame.getTriggerbindings();
 
 		/* override navigator z-step size with raw[ 0 ] z resolution */
 		final TranslateZController translateZController = new TranslateZController(
-				bdv.getViewer(),
-				raws.get( 0 ).getMipmapResolutions()[ 0 ],
+				getViewer(),
+				loaders.values().iterator().next().getMipmapResolutions()[ 0 ],
 				config );
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
-//		if ( selectionController != null )
-//			bdv.getViewer().getDisplay().addOverlayRenderer( selectionController.getSelectionOverlay() );
 	}
 
-	protected void readLabels(
-			final IHDF5Reader reader,
-			final String labelDataset,
-			final double[] resolution,
-			final double[] offset ) throws IOException
-	{
-		/* labels */
-		final H5LabelMultisetSetupImageLoader labelLoader =
-				new H5LabelMultisetSetupImageLoader(
-						reader,
-						null,
-						labelDataset,
-						setupId++,
-						cellDimensions,
-						resolution,
-						offset );
-
-		/* converted labels */
-		final ARGBConvertedLabelsSource convertedLabelsSource =
-				new ARGBConvertedLabelsSource(
-						setupId++,
-						labelLoader,
-						colorStream );
-
-		labels.add( labelLoader );
-		convertedLabels.add( convertedLabelsSource );
-	}
-
-	/**
-	 * Creates a label loader and the converted labels and adds them to the
-	 * respective lists.
-	 *
-	 * Depends on {@link #colorStream} being initialized.
-	 *
-	 * Modifies {@link #labels}, {@link #setupId}, {@link #convertedLabels}.
-	 *
-	 * @param reader
-	 * @param labelDataset
-	 * @throws IOException
-	 */
-	protected void readLabels(
-			final IHDF5Reader reader,
-			final String labelDataset ) throws IOException
-	{
-		/* labels */
-		final H5LabelMultisetSetupImageLoader labelLoader =
-				new H5LabelMultisetSetupImageLoader(
-						reader,
-						null,
-						labelDataset,
-						setupId++,
-						cellDimensions );
-
-		/* converted labels */
-		final ARGBConvertedLabelsSource convertedLabelsSource =
-				new ARGBConvertedLabelsSource(
-						setupId++,
-						labelLoader,
-						colorStream );
-
-		labels.add( labelLoader );
-		convertedLabels.add( convertedLabelsSource );
-	}
 
 	static protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException
 	{
@@ -584,35 +547,6 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		return config;
 	}
 
-	final static protected long maxId(
-			final H5LabelMultisetSetupImageLoader labelLoader,
-			long maxId ) throws IOException
-	{
-		for ( final LabelMultisetType t : Views.iterable( labelLoader.getImage( 0 ) ) )
-			for ( final Multiset.Entry< Label > v : t.entrySet() )
-			{
-				final long id = v.getElement().id();
-				if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
-					maxId = id;
-			}
-
-		return maxId;
-	}
-
-	final static protected long maxId(
-			final Iterable< LongType > labels,
-			long maxId ) throws IOException
-	{
-		for ( final LongType t : labels )
-		{
-			final long id = t.get();
-			if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
-				maxId = id;
-		}
-
-		return maxId;
-	}
-
 	static public double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
 		final double[] resolution;
@@ -639,5 +573,104 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 			offset = new double[] { 0, 0, 0 };
 
 		return offset;
+	}
+
+	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer(
+			final String windowTitle,
+			final List< DatasetSpecification > specs,
+			final HashMap< DatasetSpecification, AbstractViewerSetupImgLoader< ?, ? > > loaders,
+			final HashMap< DatasetSpecification, ARGBStream > streams,
+			final HashMap< DatasetSpecification, Composite< ARGBType, ARGBType > > composites,
+			final InputTriggerConfig config )
+	{
+
+		int setupId = 0;
+		final ArrayList< CombinedImgLoader.SetupIdAndLoader > rawLoaders = new ArrayList<>();
+		for ( final DatasetSpecification spec : specs )
+			if ( spec.dataType.equals( DataType.RAW ) )
+			{
+				rawLoaders.add( new CombinedImgLoader.SetupIdAndLoader( setupId, loaders.get( spec ) ) );
+				++setupId;
+			}
+
+		final CombinedImgLoader imgLoader = new CombinedImgLoader( rawLoaders.stream().toArray( CombinedImgLoader.SetupIdAndLoader[]::new ) );
+
+		final ArrayList< TimePoint > timePointsList = new ArrayList<>();
+		final Map< Integer, BasicViewSetup > setups = new HashMap<>();
+		final ArrayList< ViewRegistration > viewRegistrationsList = new ArrayList<>();
+		for ( final CombinedImgLoader.SetupIdAndLoader loader : rawLoaders )
+		{
+			timePointsList.add( new TimePoint( 0 ) );
+			setups.put( loader.setupId, new BasicViewSetup( loader.setupId, null, null, null ) );
+			viewRegistrationsList.add( new ViewRegistration( 0, loader.setupId ) );
+		}
+
+		final TimePoints timepoints = new TimePoints( timePointsList );
+		final ViewRegistrations reg = new ViewRegistrations( viewRegistrationsList );
+		final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal( timepoints, setups, imgLoader, null );
+		final SpimDataMinimal spimData = new SpimDataMinimal( null, seq, reg );
+
+		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
+		final ArrayList< ConverterSetup > converterSetups = new ArrayList<>();
+		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap<>();
+
+		BigDataViewer.initSetups( spimData, converterSetups, sources );
+		{
+			int index = 0;
+			for ( final DatasetSpecification spec : specs )
+				if ( spec.dataType.equals( DataType.RAW ) )
+					sourceCompositesMap.put( sources.get( index++ ).getSpimSource(), composites.get( spec ) );
+		}
+
+		for ( final DatasetSpecification spec : specs )
+		{
+			final AbstractViewerSetupImgLoader< ?, ? > loader = loaders.get( spec );
+			if ( spec.dataType().equals( DataType.LABEL ) )
+			{
+				final ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
+				final VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
+				final AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > l = ( AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > ) loader;
+				final ARGBConvertedLabelsSource source = new ARGBConvertedLabelsSource( setupId, l, streams.get( spec ) );
+				final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter<>( source, vconverter );
+				final SourceAndConverter< ARGBType > soc = new SourceAndConverter<>( source.nonVolatile(), converter, vsoc );
+				sources.add( soc );
+				sourceCompositesMap.put( soc.getSpimSource(), composites.get( spec ) );
+				final RealARGBColorConverterSetup labelConverterSetup = new RealARGBColorConverterSetup( 2, converter, vconverter );
+				converterSetups.add( labelConverterSetup );
+				sourceCompositesMap.put( soc.getSpimSource(), composites.get( spec ) );
+			}
+		}
+
+
+		/* cache */
+		for ( final DatasetSpecification spec : specs )
+			((SetCache)loaders.get( spec )).setCache( imgLoader.getCacheControl() );
+
+		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< >( sourceCompositesMap );
+
+		ViewerOptions options = ViewerOptions.options()
+				.accumulateProjectorFactory( projectorFactory )
+				.numRenderingThreads( 16 )
+				.targetRenderNanos( 10000000 );
+
+		if ( config != null )
+			options = options.inputTriggerConfig( config );
+
+		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCacheControl(), windowTitle, null, options );
+
+		final AffineTransform3D transform = new AffineTransform3D();
+		bdv.getViewer().setCurrentViewerTransform( transform );
+		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+
+		/* separate source min max */
+		for ( final ConverterSetup converterSetup : converterSetups )
+		{
+			bdv.getSetupAssignments().removeSetupFromGroup( converterSetup, bdv.getSetupAssignments().getMinMaxGroups().get( 0 ) );
+			converterSetup.setDisplayRange( 0, 255 );
+		}
+
+		return bdv;
+
+
 	}
 }
