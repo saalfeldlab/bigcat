@@ -5,6 +5,8 @@ import imglyb
 
 from jnius import autoclass
 
+import threading
+
 import time
 
 if __name__ == "__main__":
@@ -29,12 +31,18 @@ if __name__ == "__main__":
 	  .setOffsetArray( offsetArray ) \
 	  .setResolutionArray( resolutionArray )
 
+
 	check = BdvWindowClosedCheck()
 	bigCat = BigDataViewerJan.run( p )
 	bdv = bigCat.getBigDataViewer()
 	bdv.getViewerFrame().addWindowListener( check )
-	while check.isOpen():
-		time.sleep( 0.1 )
+
+	def check_window():
+		while check.isOpen():
+			time.sleep( 0.1 )
+
+	check_thread = threading.Thread( target = check_window )
+	check_thread.start()
 
 	
 	
