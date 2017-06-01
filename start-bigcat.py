@@ -19,7 +19,7 @@ if __name__ == "__main__":
 	rawFile = '/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf'
 	groundTruthFile = rawFile
 	predictionFile = '/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B_median_aff_cf_hq_dq_au00.87.hdf'
-	offsetArray = [ 560, 424, 424 ][::-1]
+	offsetArray = [ 600, 424, 424 ][::-1]
 	resolutionArray = [ 40, 4, 4 ][::-1]
 
 	p = Parameters() \
