@@ -217,20 +217,20 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		final BigCatViewerJan< Parameters > bigCat = new BigCatViewerJan<>();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
-		final Thread t = new Thread( () -> {
-			try
-			{
-				Thread.sleep( 20000 );
-			}
-			catch ( final InterruptedException e )
-			{
-				e.printStackTrace();
-				return;
-			}
-			System.out.println( "HIGHLIGHTING!" );
-			bigCat.highlight( new long[] { 1770, 1771, 1772, 1777, 1782, 748566, 748567, 748568, 748569, 748570, 748571 } );
-		} );
-		t.start();
+//		final Thread t = new Thread( () -> {
+//			try
+//			{
+//				Thread.sleep( 20000 );
+//			}
+//			catch ( final InterruptedException e )
+//			{
+//				e.printStackTrace();
+//				return;
+//			}
+//			System.out.println( "HIGHLIGHTING!" );
+//			bigCat.highlight( new long[] { 1770, 1771, 1772, 1777, 1782, 748566, 748567, 748568, 748569, 748570, 748571 } );
+//		} );
+//		t.start();
 		return bigCat;
 	}
 
