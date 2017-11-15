@@ -249,7 +249,7 @@ public class Atlas
 				final ViewerNode vn = ( ViewerNode ) child;
 				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer(), sourceInfo );
 				orthoSlices.add( orthoSlice );
-				orthoSlice.toggleVisibility();
+//				orthoSlice.toggleVisibility();
 			}
 
 		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {

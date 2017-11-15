@@ -31,16 +31,17 @@ package bdv.bigcat.viewer.bdvfx;
 
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.collections.Buffer;
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.paint.PhongMaterial;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -50,7 +51,7 @@ import net.imglib2.ui.TransformListener;
 
 public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
-		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, ArrayImg< ARGBType, IntArray > >
+		implements TransformAwareBufferedImageOverlayRendererGeneric< PhongMaterial, ArrayImg< ARGBType, IntArray > >
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -60,6 +61,8 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	protected AffineTransform3D paintedTransform;
 
 	private final Buffer imgBuffer = new CircularFifoBuffer( 10 );
+
+	ExecutorService es = Executors.newFixedThreadPool( 5 );
 
 	/**
 	 * These listeners will be notified about the transform that is associated
@@ -85,7 +88,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	}
 
 	@Override
-	public void drawOverlays( final ImageView imgView )
+	public void drawOverlays( final PhongMaterial imgView )
 	{
 		boolean notifyTransformListeners = false;
 		synchronized ( this )
@@ -105,7 +108,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		{
 			final int w = ( int ) sourceImage.dimension( 0 );
 			final int h = ( int ) sourceImage.dimension( 1 );
-			new Thread( () -> {
+			es.execute( () -> {
 				final WritableImage wimg;
 				synchronized ( imgBuffer )
 				{
@@ -113,8 +116,9 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				}
 				final int[] data = sourceImage.update( null ).getCurrentStorageArray();
 				wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), data, 0, w );
-				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setImage( wimg ) );
-			} ).start();
+				imgView.setSelfIlluminationMap( wimg );
+//				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setSelfIlluminationMap( wimg ) );
+			} );
 			if ( notifyTransformListeners )
 				for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
 					listener.transformChanged( paintedTransform );

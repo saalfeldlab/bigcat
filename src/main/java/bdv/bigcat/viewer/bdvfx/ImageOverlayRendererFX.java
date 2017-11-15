@@ -35,9 +35,9 @@ package bdv.bigcat.viewer.bdvfx;
 
 import java.awt.image.BufferedImage;
 
-import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.paint.PhongMaterial;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
@@ -53,7 +53,7 @@ import net.imglib2.ui.util.Defaults;
  *
  * @author Tobias Pietzsch
  */
-public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView >, RenderTargetGeneric< ArrayImg< ARGBType, IntArray > >
+public class ImageOverlayRendererFX implements OverlayRendererGeneric< PhongMaterial >, RenderTargetGeneric< ArrayImg< ARGBType, IntArray > >
 {
 
 	/**
@@ -126,7 +126,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 	}
 
 	@Override
-	public void drawOverlays( final ImageView g )
+	public void drawOverlays( final PhongMaterial g )
 	{
 		synchronized ( this )
 		{
@@ -144,7 +144,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 			final int h = ( int ) bufferedImage.dimension( 1 );
 			final WritableImage wimg = new WritableImage( w, h );
 			wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), bufferedImage.update( null ).getCurrentStorageArray(), 0, w );
-			g.setImage( wimg );
+			g.setSelfIlluminationMap( wimg );
 		}
 	}
 

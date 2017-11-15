@@ -45,16 +45,20 @@ import javax.swing.JComponent;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
-import javafx.geometry.Insets;
+import javafx.collections.ObservableFloatArray;
+import javafx.scene.Camera;
+import javafx.scene.Group;
+import javafx.scene.ParallelCamera;
+import javafx.scene.SubScene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
+import javafx.scene.shape.VertexFormat;
 import net.imglib2.ui.InteractiveDisplayCanvas;
 import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.TransformEventHandler;
@@ -71,42 +75,6 @@ import net.imglib2.ui.TransformListener;
  */
 public class InteractiveDisplayPaneComponent< A > extends StackPane implements InteractiveDisplayCanvasGeneric< A, GraphicsContext, Collection< InstallAndRemove > >
 {
-
-	private class PixelatedImageView extends ImageView
-	{
-//		@Override
-//		protected NGNode impl_createPeer()
-//		{
-//			return new NGImageView()
-//			{
-//
-//				private com.sun.prism.Image image;
-//
-//				@Override
-//				public void setImage( final Object img )
-//				{
-//					super.setImage( img );
-//					image = ( com.sun.prism.Image ) img;
-//				}
-//
-//				@Override
-//				protected void renderContent( final Graphics g )
-//				{
-//					final BaseResourceFactory factory = ( BaseResourceFactory ) g.getResourceFactory();
-//					final ResourceFactory rf = g.getResourceFactory();
-//					final int w = ( int ) getWidth();
-//					final int h = ( int ) getHeight();
-//					final Texture tex = rf.createTexture( PixelFormat.BYTE_BGRA_PRE, Usage.DEFAULT, WrapMode.CLAMP_NOT_NEEDED, w, h );
-////					final Texture tex = factory.getCachedTexture( image, Texture.WrapMode.CLAMP_TO_EDGE, getWidth(), getHeight() );
-//					tex.setLinearFiltering( false );
-//					tex.update( image );
-//					g.drawTexture( tex, 0, 0, w, h, 0, 0, image.getWidth(), image.getHeight() );
-//					tex.unlock();
-////					super.renderContent( g );
-//				}
-//			};
-//		}
-	}
 
 	private static final long serialVersionUID = -5546719724928785878L;
 
@@ -130,16 +98,42 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 
 	private final CanvasPane canvasPane = new CanvasPane( 1, 1 );
 
-	protected final ImageView imageView = new ImageView();
+	private final PhongMaterial material = new PhongMaterial();
+
+	private final MeshView mv = new MeshView();
+
+	private final TriangleMesh mesh = new TriangleMesh();
 	{
-		this.imageView.setPreserveRatio( false );
-		this.imageView.setSmooth( false );
-		this.imageView.fitWidthProperty().bind( this.widthProperty() );
-		this.imageView.fitHeightProperty().bind( this.heightProperty() );
-		this.getChildren().add( imageView );
-		this.getChildren().add( canvasPane );
-		this.setBackground( new Background( new BackgroundFill( Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY ) ) );
+		material.setDiffuseColor( Color.BLACK );
+		material.setSpecularColor( Color.BLACK );
+		final int[] indices = {
+				0, 0, 1, 1, 2, 2, 0, 0, 2, 2, 3, 3
+		};
+
+		final float[] texCoords = {
+				0.0f, 0.0f,
+				1.0f, 0.0f,
+				1.0f, 1.0f,
+				0.0f, 1.0f
+		};
+		mesh.getFaces().addAll( indices );
+		mesh.getTexCoords().addAll( texCoords );
+		mesh.setVertexFormat( VertexFormat.POINT_TEXCOORD );
+		mesh.getPoints().addAll(
+				0.0f, 0.0f, 0.0f,
+				1.0f, 0.0f, 0.0f,
+				1.0f, 1.0f, 0.0f,
+				0.0f, 1.0f, 0.0f );
+		mv.setMesh( mesh );
+		mv.setMaterial( material );
+		mv.setCullFace( CullFace.NONE );
 	}
+
+	private final Camera cam = new ParallelCamera();
+
+	private final SubScene scene;
+
+	private final Group group;
 
 //	private final Canvas canvas;
 
@@ -172,6 +166,17 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 		this.transformListeners = new CopyOnWriteArrayList<>();
 		this.renderTarget = renderTarget;
 
+		this.group = new Group();
+		this.scene = new SubScene( group, width, height );
+		scene.setFill( Color.BLACK );
+		scene.setCamera( this.cam );
+		this.getChildren().add( scene );
+		this.getChildren().add( canvasPane );
+		group.getChildren().add( mv );
+		scene.widthProperty().bind( widthProperty() );
+		scene.heightProperty().bind( heightProperty() );
+//		this.setBackground( new Background( new BackgroundFill( Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY ) ) );
+
 		final ChangeListener< Number > sizeChangeListener = ( ChangeListener< Number > ) ( observable, oldValue, newValue ) -> {
 			final double wd = widthProperty().get();
 			final double hd = heightProperty().get();
@@ -183,6 +188,14 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 				handler.setCanvasSize( w, h, true );
 			overlayRenderers.forEach( or -> or.setCanvasSize( w, h ) );
 			renderTarget.setCanvasSize( w, h );
+
+			final ObservableFloatArray points = mesh.getPoints();
+			points.clear();
+			points.addAll(
+					0.0f, 0.0f, 0.0f,
+					w, 0.0f, 0.0f,
+					w, h, 0.0f,
+					0.0f, h, 0.0f );
 		};
 
 		widthProperty().addListener( sizeChangeListener );
@@ -318,7 +331,9 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 
 	public void repaint()
 	{
-		this.renderTarget.drawOverlays( this.imageView );
+//		final PhongMaterial material = new PhongMaterial();
+		this.renderTarget.drawOverlays( material );
+//		this.mv.setMaterial( material );
 		drawOverlays();
 		layout();
 	}
@@ -336,13 +351,9 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 			l.transformChanged( transform );
 	}
 
-	public void addImageChangeListener( final ChangeListener< Image > listener )
+	public PhongMaterial getCanvas()
 	{
-		this.imageView.imageProperty().addListener( listener );
+		return ( PhongMaterial ) this.mv.getMaterial();
 	}
 
-	public void removeImageChangeListener( final ChangeListener< Image > listener )
-	{
-		this.imageView.imageProperty().removeListener( listener );
-	}
 }

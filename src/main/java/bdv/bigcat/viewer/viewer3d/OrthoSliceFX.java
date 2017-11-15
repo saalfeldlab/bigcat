@@ -9,17 +9,14 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
 import bdv.viewer.state.SourceState;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Task;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.image.Image;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
 
 public class OrthoSliceFX
 {
@@ -38,7 +35,7 @@ public class OrthoSliceFX
 	// no delay
 	LatestTaskExecutor es = new LatestTaskExecutor( 0 );
 
-	private final PhongMaterial material;
+//	private final PhongMaterial material;
 
 	private boolean isVisible = false;
 
@@ -50,16 +47,16 @@ public class OrthoSliceFX
 		this.scene = scene;
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
-		this.viewer.getDisplay().addImageChangeListener( this.renderTransformListener );
+//		this.viewer.getDisplay().addImageChangeListener( this.renderTransformListener );
 		this.planes.add( mv );
 
-		this.material = new PhongMaterial();
+//		this.material = new PhongMaterial();
 
 		mv.setCullFace( CullFace.NONE );
-		mv.setMaterial( material );
+		mv.setMaterial( viewer.getDisplay().getCanvas() );
 
-		material.setDiffuseColor( Color.BLACK );
-		material.setSpecularColor( Color.BLACK );
+//		material.setDiffuseColor( Color.BLACK );
+//		material.setSpecularColor( Color.BLACK );
 
 //		mv.addEventHandler( MouseEvent.MOUSE_CLICKED, e -> {
 //			final Optional< Source< ? > > optionalSource = getSource();
@@ -92,7 +89,7 @@ public class OrthoSliceFX
 //		} );
 	}
 
-	private void paint( final Image image )
+	private void paint()
 	{
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final double w;
@@ -107,22 +104,33 @@ public class OrthoSliceFX
 			return;
 //		viewerTransform.set( viewerTransform.get( 0, 3 ) - w / 2, 0, 3 );
 //		viewerTransform.set( viewerTransform.get( 1, 3 ) - h / 2, 1, 3 );
-		es.execute( () -> {
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				material.setSelfIlluminationMap( image );
+		final Task< Void > task = new Task< Void >()
+		{
+
+			@Override
+			protected Void call() throws Exception
+			{
+//				material.setSelfIlluminationMap( image );
 				mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
-			} );
-		} );
+				return null;
+			}
+		};
+		new Thread( task::run ).start();
+//		es.execute( () -> {
+//			InvokeOnJavaFXApplicationThread.invoke( () -> {
+//				material.setSelfIlluminationMap( image );
+//				mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
+//			} );
+//		} );
 	}
 
-	private final class RenderTransformListener implements ChangeListener< Image >
+	private final class RenderTransformListener implements TransformListener< AffineTransform3D >
 	{
 
 		@Override
-		public void changed( final ObservableValue< ? extends Image > observable, final Image oldValue, final Image newValue )
+		public void transformChanged( final AffineTransform3D arg0 )
 		{
-			if ( newValue != null )
-				paint( newValue );
+			paint();
 		}
 
 	}
