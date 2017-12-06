@@ -60,6 +60,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V e
 			offset = new double[] { 0, 0, 0 };
 
 		return offset;
+
 	}
 
 	public AbstractH5SetupImageLoader(

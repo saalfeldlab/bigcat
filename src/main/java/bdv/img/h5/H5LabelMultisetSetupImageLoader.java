@@ -1,6 +1,7 @@
 package bdv.img.h5;
 
 import java.io.IOException;
+import java.util.stream.DoubleStream;
 
 import bdv.AbstractCachedViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
@@ -14,6 +15,8 @@ import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import ncsa.hdf.hdf5lib.exceptions.HDF5AttributeException;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Util;
 
 /**
@@ -33,7 +36,6 @@ public class H5LabelMultisetSetupImageLoader
 	{
 		final HDF5DataSetInformation typeInfo = reader.object().getDataSetInformation( dataset );
 		final Class< ? > cls = typeInfo.getTypeInformation().tryGetJavaType();
-//		System.out.println( typeInfo.getTypeInformation().tryGetJavaType().toString() );
 		if ( float.class == cls )
 			return new H5FloatLabelMultisetArrayLoader( reader, scaleReader, dataset );
 		else if ( short.class == cls )
@@ -132,14 +134,28 @@ public class H5LabelMultisetSetupImageLoader
 
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
-		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
-		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		try
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+			return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		}
+		catch ( final HDF5AttributeException e )
+		{
+			return DoubleStream.generate( () -> 1.0 ).limit( 3 ).toArray();
+		}
 	}
 
 	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
 	{
-		final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
-		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		try
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
+			return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		}
+		catch ( final HDF5AttributeException e )
+		{
+			return new double[ 3 ];
+		}
 	}
 
 	private final double[] offset;
@@ -164,6 +180,13 @@ public class H5LabelMultisetSetupImageLoader
 				typedLoader( reader, scaleReader, dataset ),
 				cache );
 		this.offset = offset;
+		for ( int i = 0; i < mipmapTransforms.length; ++i )
+		{
+			final AffineTransform3D translation = new AffineTransform3D();
+			translation.translate( offset );
+			final AffineTransform3D transform = translation.concatenate( mipmapTransforms[ i ] );
+			mipmapTransforms[ i ].set( transform );
+		}
 	}
 
 	public H5LabelMultisetSetupImageLoader(
