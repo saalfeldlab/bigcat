@@ -50,10 +50,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
-import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.volatiles.CacheHints;
@@ -68,14 +66,6 @@ import net.imglib2.util.Util;
 
 public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 {
-
-	private static final String RESOLUTION_KEY = "resolution";
-
-	private static final String OFFSET_KEY = "offset";
-
-	private static final String MIN_KEY = "min";
-
-	private static final String MAX_KEY = "max";
 
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
@@ -118,10 +108,6 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	{
 		traversalMessage.addListener( ( obs, oldv, newv ) -> System.out.println( traversalMessage ) );
 	}
-
-	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
-
-	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
 
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 	{
@@ -241,7 +227,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 		n5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( newv )
-				n5Field.setEffect( this.textFieldNoErrorEffect );
+				n5Field.setEffect( BackendDialog.textFieldNoErrorEffect );
 			else
 				n5Field.setEffect( n5errorEffect.get() );
 		} );

@@ -37,11 +37,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
-import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.type.NativeType;
@@ -51,14 +49,6 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
-
-	private static final String RESOLUTION_KEY = "resolution";
-
-	private static final String OFFSET_KEY = "offset";
-
-	private static final String MIN_KEY = "min";
-
-	private static final String MAX_KEY = "max";
 
 	// path for the hdf file
 	private final SimpleObjectProperty< String > hdf5 = new SimpleObjectProperty<>();
@@ -76,11 +66,6 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 	private final SimpleObjectProperty< String > errorMessage = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< Effect > hdf5errorEffect = new SimpleObjectProperty<>();
-
-	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
-
-	// appearance of the text box when there is an error
-	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
 
 	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
 
@@ -220,7 +205,7 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 
 		hdf5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( newv )
-				hdf5Field.setEffect( this.textFieldNoErrorEffect );
+				hdf5Field.setEffect( BackendDialog.textFieldNoErrorEffect );
 			else
 				hdf5Field.setEffect( hdf5errorEffect.get() );
 		} );

@@ -11,11 +11,27 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Node;
+import javafx.scene.control.TextField;
+import javafx.scene.effect.Effect;
+import javafx.scene.effect.InnerShadow;
+import javafx.scene.paint.Color;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
 public interface BackendDialog
 {
+
+	static final String RESOLUTION_KEY = "resolution";
+
+	static final String OFFSET_KEY = "offset";
+
+	static final String MIN_KEY = "min";
+
+	static final String MAX_KEY = "max";
+
+	final Effect textFieldNoErrorEffect = new TextField().getEffect();
+
+	final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
 
 	public Node getDialogNode();
 
