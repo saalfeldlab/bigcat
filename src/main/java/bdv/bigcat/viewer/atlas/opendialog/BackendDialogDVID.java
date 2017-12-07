@@ -1,10 +1,14 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
@@ -15,46 +19,72 @@ import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.Effect;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import net.imglib2.Interval;
 import net.imglib2.img.basictypeaccess.volatiles.array.DirtyVolatileByteArray;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 
-public class BackendDialogDVID implements BackendDialog
+public class BackendDialogDVID implements BackendDialog, CombinesErrorMessages
 {
+
+	// url to access the dvid files
 	private final SimpleObjectProperty< String > dvid = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
+	// combined error messages
+	private final SimpleObjectProperty< String > errorMessage = new SimpleObjectProperty<>();
+
+	// error message for invalid dvid url
+	private final SimpleObjectProperty< String > dvidError = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< Effect > dvidErrorEffect = new SimpleObjectProperty<>();
+
+	public BackendDialogDVID()
 	{
+		dvid.addListener( ( obs, oldv, newv ) -> {
+			if ( newv != null && new File( newv ).exists() )
+			{
+				// TODO: update datasets here
+			}
+			else
+			{
+				this.dvidError.set( "No valid dvid url." );
+			}
+		} );
+
 		dataset.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null )
 				error.set( null );
 			else
-				error.set( "No raw dataset" );
+				error.set( "No dataset found" );
 		} );
 
+		dvidError.addListener( ( obs, oldv, newv ) -> this.dvidErrorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
+
+		this.errorMessages().forEach( em -> em.addListener( ( obs, oldv, newv ) -> combineErrorMessages() ) );
+		
 		dvid.set( "" );
 		dataset.set( "" );
-		error.set( "" );
 	}
 
 	@Override
 	public Node getDialogNode()
 	{
-		final TextField dvidPathField = new TextField( dvid.get() );
-		dvidPathField.setMinWidth( 0 );
-		dvidPathField.setMaxWidth( Double.POSITIVE_INFINITY );
-		dvidPathField.textProperty().bindBidirectional( dvid );
+		final TextField dvidURLField = new TextField( dvid.get() );
+		dvidURLField.setMinWidth( 0 );
+		dvidURLField.setMaxWidth( Double.POSITIVE_INFINITY );
+		dvidURLField.setPromptText( "dvid url" );
+		dvidURLField.textProperty().bindBidirectional( dvid );
 
 		final TextField rawDatasetField = new TextField( dataset.get() );
 		rawDatasetField.setMinWidth( 0 );
@@ -62,15 +92,24 @@ public class BackendDialogDVID implements BackendDialog
 		rawDatasetField.textProperty().bindBidirectional( dataset );
 
 		final GridPane grid = new GridPane();
-		grid.add( new Label( "dvid path" ), 0, 0 );
-		grid.add( new Label( "data set" ), 0, 1 );
-		grid.setMinWidth( Region.USE_PREF_SIZE );
-		grid.add( dvidPathField, 1, 0 );
-		grid.add( rawDatasetField, 1, 1 );
-		grid.setHgap( 10 );
-
-		GridPane.setHgrow( dvidPathField, Priority.ALWAYS );
+		grid.add( dvidURLField, 0, 0 );
+		grid.add( rawDatasetField, 0, 1 );
+		GridPane.setHgrow( dvidURLField, Priority.ALWAYS );
 		GridPane.setHgrow( rawDatasetField, Priority.ALWAYS );
+
+		this.dvidErrorEffect.addListener( ( obs, oldv, newv ) -> {
+			if ( !dvidURLField.isFocused() )
+				dvidURLField.setEffect( newv );
+		} );
+
+		dvidURLField.setEffect( this.dvidErrorEffect.get() );
+
+		dvidURLField.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+				dvidURLField.setEffect( BackendDialog.textFieldNoErrorEffect );
+			else
+				dvidURLField.setEffect( dvidErrorEffect.get() );
+		} );
 
 		return grid;
 	}
@@ -78,7 +117,7 @@ public class BackendDialogDVID implements BackendDialog
 	@Override
 	public ObjectProperty< String > errorMessage()
 	{
-		return error;
+		return errorMessage;
 	}
 
 	@Override
@@ -170,6 +209,18 @@ public class BackendDialogDVID implements BackendDialog
 
 		}
 
+	}
+
+	@Override
+	public Collection< ObservableValue< String > > errorMessages()
+	{
+		return Arrays.asList( this.dvidError );
+	}
+
+	@Override
+	public Consumer< Collection< String > > combiner()
+	{
+		return strings -> this.errorMessage.set( String.join( "\n", strings ) );
 	}
 
 }
