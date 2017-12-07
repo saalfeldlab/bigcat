@@ -53,7 +53,7 @@ or you can download a compiled fat jar from [here - updated on 06.12.2017](https
 
 ## Usage
 
-It is necessary to load dataset source by pressing `ctrl` + `o`.
+It is necessary to load a dataset source by pressing `ctrl` + `o`.
 Right now, you can load N5 and HDF5 files.
 
 To use the highlight mode, it is necessary to load a label source and select it from the upper menu by pressing `ctrl` + `tab`.
@@ -68,8 +68,10 @@ There are three modes available:
 
 * Merge and split:
 
+
 Useful commands:
-| Command                  | Description        |
+
+| Command                 | Description        |
 | ----------------------- |:------------------:|
 | `f` | switch full screen on/off for the viewer on focus |
 | `ctrl` + `p` | snapshot of the 3d scene |
