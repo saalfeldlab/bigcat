@@ -200,7 +200,6 @@ public class OrthoView extends GridPane
 
 		if ( viewerNodes.contains( focusOwner ) || is3DNode )
 		{
-			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
@@ -208,7 +207,6 @@ public class OrthoView extends GridPane
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
-//					( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
 				this.setHgap( 0 );
 				this.setVgap( 0 );
 			}

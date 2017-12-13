@@ -69,6 +69,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
 		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
+		backendInfoDialogs.put( BACKEND.DVID, new BackendDialogDVID() );
 	}
 
 	private final MetaPanel metaPanel = new MetaPanel();

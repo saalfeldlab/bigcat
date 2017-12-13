@@ -317,4 +317,58 @@ public interface DataSource< D, T > extends Source< T >
 						name );
 		return rawSource;
 	}
+
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createDVIDRawSource(
+			final String name,
+			final String rawURL,
+			final String rawCommit,
+			final String rawDataset,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+//		final RandomAccessibleInterval< T > raw = DVIDUtils.openVolatile( rawURL, rawDataset );
+//
+//		final T t = Util.getTypeFromInterval( raw );
+//		@SuppressWarnings( "unchecked" )
+//		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
+//
+//		final AffineTransform3D rawTransform = new AffineTransform3D();
+//		rawTransform.set(
+//				resolution[ 0 ], 0, 0, offset[ 0 ],
+//				0, resolution[ 1 ], 0, offset[ 1 ],
+//				0, 0, resolution[ 2 ], offset[ 2 ] );
+//
+//		@SuppressWarnings( "unchecked" )
+//		final RandomAccessibleIntervalDataSource< T, V > rawSource =
+//				new RandomAccessibleIntervalDataSource< T, V >(
+//						new RandomAccessibleInterval[] { raw },
+//						new RandomAccessibleInterval[] {
+//								VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+//						new AffineTransform3D[] { rawTransform },
+//						( interpolation ) -> {
+//							switch ( interpolation )
+//							{
+//							case NLINEAR:
+//								return new NLinearInterpolatorFactory<>();
+//							default:
+//								return new NearestNeighborInterpolatorFactory<>();
+//							}
+//						},
+//						( interpolation ) -> {
+//							switch ( interpolation )
+//							{
+//							case NLINEAR:
+//								return new NLinearInterpolatorFactory<>();
+//							default:
+//								return new NearestNeighborInterpolatorFactory<>();
+//							}
+//						},
+//						t::createVariable,
+//						v::createVariable,
+//						name );
+//		return rawSource;
+		return null;
+	}
 }
