@@ -4,9 +4,9 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>sc.fiji</groupId>
-		<artifactId>pom-bigdataviewer</artifactId>
-		<version>5.0.0</version>
+		<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
+		<version>17.2.0</version>
 	</parent>
 
 	<artifactId>bigcat</artifactId>
@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>4.0.3-SNAPSHOT</version>
+			<version>4.3.1</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -51,12 +51,10 @@
 		<dependency>
 			<groupId>net.sf.trove4j</groupId>
 			<artifactId>trove4j</artifactId>
-			<version>3.0.3</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>4.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -69,7 +67,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-4</version>
+			<version>1.0.0-beta-7</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imagej</groupId>
@@ -78,7 +76,7 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>ui-behaviour</artifactId>
-			<version>1.3.0</version>
+			<version>1.6.0</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -93,6 +91,16 @@
 			<groupId>org.zeromq</groupId>
 			<artifactId>jeromq</artifactId>
 			<version>0.3.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
+			<version>1.4.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2-cache</artifactId>
+			<version>1.0.0-beta-7</version>
 		</dependency>
 	</dependencies>
 
@@ -130,7 +138,12 @@
 			<id>imagej.public</id>
 			<url>https://maven.imagej.net/content/groups/public</url>
 		</repository>
+    	<repository>
+        	<id>saalfeld-lab-maven-repo</id>
+        	<url>https://saalfeldlab.github.io/maven</url>
+    	</repository>
 	</repositories>
+	
 
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/bigcat</connection>
@@ -198,4 +211,5 @@
 -->			</plugins>
 		</pluginManagement>
 	</build>
+	<groupId>sc.fiji</groupId>
 </project>
