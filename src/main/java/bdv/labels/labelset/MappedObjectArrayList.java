@@ -51,7 +51,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	/**
 	 * make this object refer to a different list.
 	 */
-	protected void referToDataAt( final MappedAccessData< T > data, final long baseOffset )
+	public void referToDataAt( final MappedAccessData< T > data, final long baseOffset )
 	{
 		this.data = data;
 		this.baseOffset = baseOffset;

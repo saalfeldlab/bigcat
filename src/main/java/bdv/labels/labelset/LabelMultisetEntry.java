@@ -9,8 +9,8 @@ public class LabelMultisetEntry
 {
 	public static final LabelMultisetEntry type = new LabelMultisetEntry();
 
-	protected static final int SUPERVOXEL_ID_OFFSET = 0;
-	protected static final int COUNT_OFFSET = SUPERVOXEL_ID_OFFSET + LONG_SIZE;
+	protected static final int LABEL_ID_OFFSET = 0;
+	protected static final int COUNT_OFFSET = LABEL_ID_OFFSET + LONG_SIZE;
 	protected static final int SIZE_IN_BYTES = COUNT_OFFSET + INT_SIZE;
 
 	public Label id = new Label()
@@ -51,7 +51,7 @@ public class LabelMultisetEntry
 
 	public long getId()
 	{
-		return access.getLong( SUPERVOXEL_ID_OFFSET );
+		return access.getLong( LABEL_ID_OFFSET );
 	}
 
 	@Override
@@ -94,13 +94,12 @@ public class LabelMultisetEntry
 		return new LabelMultisetEntry( new LongMappedAccess( null, 0 ) );
 	}
 
-	// TODO: should not be public
 	public void setId( final long id )
 	{
-		access.putLong( id, SUPERVOXEL_ID_OFFSET );
+		access.putLong( id, LABEL_ID_OFFSET );
 	}
 
-	void setCount( final int count )
+	public void setCount( final int count )
 	{
 		access.putInt( count, COUNT_OFFSET );
 	}
