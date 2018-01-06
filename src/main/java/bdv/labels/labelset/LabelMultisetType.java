@@ -134,7 +134,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 		return new LabelMultisetType( img );
 	}
 
-	// ==== Multiset< SuperVoxel > =====
+	// ==== Multiset< Label > =====
 
 	@Override
 	public int size()
@@ -231,14 +231,14 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	{
 		if ( entries.size() != other.entries.size() )
 			return false;
-		
+
 		final RefIterator< LabelMultisetEntry > ai = entries.iterator();
 		final RefIterator< LabelMultisetEntry > bi = other.entries.iterator();
-		
+
 		while ( ai.hasNext() )
 		{
 			final LabelMultisetEntry a = ai.next();
-			final LabelMultisetEntry b = ai.next();
+			final LabelMultisetEntry b = bi.next();
 			if ( !( a.getId() == b.getId() && a.getCount() == b.getCount() ) )
 				return false;
 		}
