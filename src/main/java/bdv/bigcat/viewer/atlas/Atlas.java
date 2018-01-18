@@ -869,4 +869,9 @@ public class Atlas
 	{
 		return ( s, t ) -> t.set( s.get() );
 	}
+
+	public Viewer3DFX renderView()
+	{
+		return this.renderView;
+	}
 }

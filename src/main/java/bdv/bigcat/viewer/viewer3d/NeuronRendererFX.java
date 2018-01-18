@@ -1,6 +1,8 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import javafx.collections.ObservableFloatArray;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
@@ -150,6 +153,43 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		final MenuItem centerSlicesAt = new MenuItem();
 		saverItem.setOnAction( meshSaver );
 		saverItem.setDisable( true );
+
+		final MenuItem dumpItem = new MenuItem();
+		dumpItem.setDisable( true );
+
+		dumpItem.setOnAction( event -> {
+			neuron.get().ifPresent( nfx -> {
+				final Group meshes = nfx.meshes();
+				final TFloatArrayList vertices = new TFloatArrayList();
+				for ( final Node mesh : meshes.getChildren() )
+					if ( mesh instanceof MeshView )
+					{
+						final MeshView mv = ( MeshView ) mesh;
+						final ObservableFloatArray p = ( ( TriangleMesh ) mv.getMesh() ).getPoints();
+						for ( int i = 0; i < p.size(); ++i )
+							vertices.add( p.get( i ) );
+					}
+				final String path = System.getProperty( "user.home" ) + "/neuron-mesh";
+				try
+				{
+					new File( path ).createNewFile();
+					try (FileOutputStream fos = new FileOutputStream( path ))
+					{
+						final DataOutputStream dos = new DataOutputStream( fos );
+						final float[] vt = vertices.toArray();
+						dos.writeInt( vt.length );
+						for ( final float v : vt )
+							dos.writeFloat( v );
+					}
+				}
+				catch ( final IOException e1 )
+				{
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			} );
+		} );
+
 		// TODO are we ever going to work with data that requires RealPoint,
 		// i.e. resolutions [a,b,c] with a,b,c < 0
 		final Point clickedPoint = new Point( 3 );
@@ -196,9 +236,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		};
 
 		this.rightClickMenu.getItems().add( saverItem );
+		this.rightClickMenu.getItems().add( dumpItem );
 		this.rightClickMenu.getItems().add( centerSlicesAt );
 		this.neuron.addListener( ( obs, oldv, newv ) -> {
 			newv.ifPresent( n -> n.isReadyProperty().addListener( ( bobs, boldv, bnewv ) -> saverItem.setDisable( !bnewv ) ) );
+			newv.ifPresent( n -> n.isReadyProperty().addListener( ( bobs, boldv, bnewv ) -> dumpItem.setDisable( !bnewv ) ) );
 		} );
 
 		listener = () -> {
@@ -428,7 +470,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			}
 		}
 	}
-	
+
 	private class IdSelector implements EventHandler< MouseEvent >
 	{
 
