@@ -37,6 +37,7 @@ import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
@@ -72,6 +73,7 @@ import bdv.viewer.ViewerOptions;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
@@ -80,6 +82,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
@@ -301,7 +304,7 @@ public class Atlas
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) || keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
 				toggleSourcesTabs();
 				event.consume();
@@ -329,7 +332,7 @@ public class Atlas
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
 		this.primaryStage = primaryStage;
-		start( primaryStage, "ATLAS" );
+		start( primaryStage, "BigCAT" );
 	}
 
 	public void start( final Stage primaryStage, final String title ) throws InterruptedException
