@@ -12,7 +12,6 @@ import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import javafx.collections.ListChangeListener;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
@@ -40,7 +39,6 @@ public class Highlights extends AbstractStateMode
 		this.meshesGroup = meshesGroup;
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
-		meshesGroup.getChildren().addListener( ( ListChangeListener< Node > ) change -> System.out.println( meshesGroup.getChildren() ) );
 	}
 
 	@Override
