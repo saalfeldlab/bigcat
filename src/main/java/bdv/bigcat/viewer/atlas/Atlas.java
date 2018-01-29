@@ -995,6 +995,8 @@ public class Atlas
 //						transform );
 			final float[] normals = new float[ mesh.length ];
 			MarchingCubes.averagedSurfaceNormals( mesh, normals );
+			for ( int i = 0; i < normals.length; ++i )
+				normals[ i ] *= -1;
 
 			return new ValuePair<>( mesh, normals );
 		} );
