@@ -252,6 +252,7 @@ public class NeuronFX< T >
 		this.assignment.addListener( () -> changed.set( true ) );
 		this.colorLookupChanged.bind( colorLookupChanged );
 		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, meshSimplificationIteratoins );
+
 		scaleOrSimplificationChanged.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.root.addListener( ( obs, oldv, newv ) -> {
@@ -285,8 +286,6 @@ public class NeuronFX< T >
 					}
 				}
 		} );
-
-		this.changed.set( false );
 		this.changed.set( true );
 
 	}
