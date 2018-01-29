@@ -144,7 +144,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 					synchronized ( viewer )
@@ -180,7 +180,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 					synchronized ( viewer )
@@ -327,7 +327,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -471,7 +471,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -519,7 +519,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -582,7 +582,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )

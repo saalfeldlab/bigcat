@@ -1,12 +1,8 @@
 package bdv.bigcat.viewer.atlas.source;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -15,7 +11,6 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -99,8 +94,8 @@ public class SourceInfo
 			final ToIdConverter idConverter,
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
 			final F frag,
-			final HashMap< Mode, ARGBStream > stream,
-			final HashMap< Mode, SelectedIds > selectedId,
+			final ARGBStream stream,
+			final SelectedIds selectedIds,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
@@ -108,10 +103,8 @@ public class SourceInfo
 		state.toIdConverterProperty().set( idConverter );
 		state.maskGeneratorProperty().set( toBoolConverter );
 		state.assignmentProperty().set( frag );
-		state.streams().clear();
-		state.streams().putAll( stream );
-		state.selectedIds().clear();
-		state.selectedIds().putAll( selectedId );
+		state.streamProperty().set( stream );
+		state.selectedIdsProperty().set( selectedIds );
 		addState( source, state );
 		return state;
 	}
@@ -140,27 +133,6 @@ public class SourceInfo
 		this.composites.remove( source );
 	}
 
-	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
-	{
-		for ( final Entry< Source< ? >, AtlasSourceState< ?, ? > > sourceAndState : states.entrySet() )
-		{
-			final AtlasSourceState< ?, ? > state = sourceAndState.getValue();
-			if ( state.typeProperty().get().equals( TYPE.LABEL ) )
-			{
-				if ( state.streams() != null )
-					makeStream.apply( sourceAndState.getKey() ).ifPresent( s -> state.streams().put( mode, s ) );
-				if ( state.selectedIds() != null )
-					makeSelection.apply( sourceAndState.getKey() ).ifPresent( s -> state.selectedIds().put( mode, s ) );
-			}
-		}
-	}
-
-	public synchronized void removeMode( final Mode mode )
-	{
-		this.states.values().stream().map( s -> s.streams() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
-		this.states.values().stream().map( s -> s.selectedIds() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
-	}
-
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
@@ -178,27 +150,6 @@ public class SourceInfo
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
 		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
-	}
-
-	public synchronized Optional< ARGBStream > stream( final Source< ? > source, final Mode mode )
-	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( state.streams().get( mode ) );
-	}
-
-	public synchronized Optional< SelectedIds > selectedIds( final Source< ? > source, final Mode mode )
-	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( state.selectedIds().get( mode ) );
-	}
-
-	public synchronized void forEachStream( final Source< ? > source, final Consumer< ARGBStream > actor )
-	{
-		Optional
-				.ofNullable( states.get( source ) )
-				.map( s -> s.streams() )
-				.filter( s -> s != null )
-				.map( Map::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
 	public int numSources()

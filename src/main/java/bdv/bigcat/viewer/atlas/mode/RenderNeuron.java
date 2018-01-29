@@ -87,9 +87,9 @@ public class RenderNeuron
 					final DataSource< ?, ? > dataSource = sourceInfo.getState( source ).dataSourceProperty().get();
 					final Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter = sourceInfo.toBoolConverter( source );
 					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
-					final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+					final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 					final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignment = sourceInfo.assignment( source );
-					final Optional< ARGBStream > stream = sourceInfo.stream( source, mode );
+					final Optional< ARGBStream > stream = Optional.ofNullable( sourceInfo.getState( source ).streamProperty().get() );
 					if ( toBoolConverter.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
 					{
 						final AffineTransform3D viewerTransform = new AffineTransform3D();

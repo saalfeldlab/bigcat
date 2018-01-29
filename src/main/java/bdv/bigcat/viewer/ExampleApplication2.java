@@ -108,7 +108,7 @@ public class ExampleApplication2
 		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
 		highlightsMode.ifPresent( mode -> {
 			viewer.getSettings().currentModeProperty().set( mode );
-			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2, mode );
+			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2 );
 			selectedIds.ifPresent( selIds -> {
 				new Thread( () -> {
 					System.out.println( "Selected ids before? " + selIds );

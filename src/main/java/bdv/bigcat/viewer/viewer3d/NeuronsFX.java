@@ -71,7 +71,7 @@ public class NeuronsFX
 		if ( assignmentForSource == null )
 			return;
 
-		final ARGBStream streams = state.streams().get( mode );
+		final ARGBStream streams = state.streamProperty().get();
 		if ( streams == null || !( streams instanceof AbstractHighlightingARGBStream ) )
 			return;
 		final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) streams;

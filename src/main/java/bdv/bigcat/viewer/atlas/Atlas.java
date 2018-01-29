@@ -6,7 +6,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +26,6 @@ import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ViewerActor;
@@ -53,7 +51,6 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -275,7 +272,7 @@ public class Atlas
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
 
-		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, settings.currentModeProperty() );
+		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
 		for ( final Node child : this.baseView().getChildren() )
@@ -422,28 +419,12 @@ public class Atlas
 			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
-		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
-		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.settings.availableModes() )
-		{
-			final SelectedIds selId = new SelectedIds();
-			selIdsMap.put( mode, selId );
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-			stream.addListener( () -> baseView().requestRepaint() );
-			streamsMap.put( mode, stream );
-		}
+		final SelectedIds selId = new SelectedIds();
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+		stream.addListener( () -> baseView().requestRepaint() );
+		converter.setConverter( new HighlightingStreamConverterLabelMultisetType( stream ) );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-
-		final Consumer< Mode > setConverter = mode -> {
-			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( spec, mode ).get();
-			converter.setConverter( new HighlightingStreamConverterLabelMultisetType( argbStream ) );
-			baseView().requestRepaint();
-		};
-
-		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
-			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
-		} );
 
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
 		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.addLabelSource(
@@ -451,11 +432,10 @@ public class Atlas
 				ToIdConverter.fromLabelMultisetType(),
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
-				streamsMap,
-				selIdsMap,
+				stream,
+				selId,
 				converter,
 				comp );// converter );
-		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 //		if ( spec instanceof MaskedSource< ?, ?, ? > )
 //		{
@@ -497,7 +477,7 @@ public class Atlas
 			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
-					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
+					selId.addListener( () -> vp.requestRepaint() );
 				};
 			}
 		} );
@@ -524,42 +504,23 @@ public class Atlas
 			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
 	{
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
-		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
-		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.settings.availableModes() )
-		{
-			final SelectedIds selId = new SelectedIds();
-			selIdsMap.put( mode, selId );
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-			stream.addListener( () -> baseView().requestRepaint() );
-			streamsMap.put( mode, stream );
-		}
+		final SelectedIds selId = new SelectedIds();
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+		stream.addListener( () -> baseView().requestRepaint() );
+		converter.setConverter( new HighlightingStreamConverterIntegerType<>( stream, toLong ) );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
-		final Consumer< Mode > setConverter = mode -> {
-			sourceInfo.stream( spec, mode ).ifPresent( stream -> {
-				final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) stream;
-				final HighlightingStreamConverterIntegerType< V > conv = new HighlightingStreamConverterIntegerType<>( argbStream, toLong );
-				converter.setConverter( conv );
-				baseView().requestRepaint();
-			} );
-		};
-
-		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
-			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
-		} );
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
 		final AtlasSourceState< V, I > state = sourceInfo.addLabelSource(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
-				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
+				sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
-				streamsMap,
-				selIdsMap,
+				stream,
+				selId,
 				converter,
 				comp );
-		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
@@ -598,7 +559,7 @@ public class Atlas
 			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
-					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
+					selId.addListener( () -> vp.requestRepaint() );
 				};
 			}
 		} );
@@ -897,9 +858,9 @@ public class Atlas
 		return ( s, t ) -> t.set( s.get() );
 	}
 
-	public Optional< SelectedIds > getSelectedIds( final Source< ? > source, final Mode mode )
+	public Optional< SelectedIds > getSelectedIds( final Source< ? > source )
 	{
-		return sourceInfo.selectedIds( source, mode );
+		return Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 	}
 
 	public GlobalTransformManager transformManager()

@@ -7,7 +7,6 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
@@ -21,8 +20,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
@@ -73,9 +70,9 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final ObjectProperty< ToIdConverter > toIdConverter = new SimpleObjectProperty<>();
 
-	private final ObservableMap< Mode, ARGBStream > streams = FXCollections.observableHashMap();
+	private final ObjectProperty< ARGBStream > stream = new SimpleObjectProperty();
 
-	private final ObservableMap< Mode, SelectedIds > selectedIds = FXCollections.observableHashMap();
+	private final ObjectProperty< SelectedIds > selectedIds = new SimpleObjectProperty<>();
 
 	private final ObjectProperty< IdService > idService = new SimpleObjectProperty<>();
 
@@ -166,12 +163,12 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.toIdConverter;
 	}
 
-	public ObservableMap< Mode, ARGBStream > streams()
+	public ObjectProperty< ARGBStream > streamProperty()
 	{
-		return this.streams;
+		return this.stream;
 	}
 
-	public ObservableMap< Mode, SelectedIds > selectedIds()
+	public ObjectProperty< SelectedIds > selectedIdsProperty()
 	{
 		return this.selectedIds;
 	}
