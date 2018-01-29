@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.ui.ARGBStream;
@@ -45,15 +46,19 @@ public class NeuronsFX
 
 	private final Mode mode;
 
+	private final ExecutorService es;
+
 	public NeuronsFX(
 			final SourceInfo sourceInfo,
 			final Group root,
-			final Mode mode )
+			final Mode mode,
+			final ExecutorService es )
 	{
 		super();
 		this.sourceInfo = sourceInfo;
 		this.root = root;
 		this.mode = mode;
+		this.es = es;
 	}
 
 	public void addNeuronAt( final DataSource< ?, ? > source, final Localizable clickLocation )
@@ -103,7 +108,8 @@ public class NeuronsFX
 					blockListCache,
 					meshCache,
 					colorLookupChanged,
-					stream::argb );
+					stream::argb,
+					es );
 			nfx.rootProperty().set( this.root );
 
 			neurons.add( new ValuePair<>( clickLocation, nfx ) );

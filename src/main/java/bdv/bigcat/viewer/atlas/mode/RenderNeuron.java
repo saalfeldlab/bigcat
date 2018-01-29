@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -50,13 +51,16 @@ public class RenderNeuron
 
 	private final NeuronsFX neurons;
 
+	private final ExecutorService es;
+
 	public RenderNeuron(
 			final ViewerPanelFX viewer,
 			final Group meshesGroup,
 			final boolean append,
 			final SourceInfo sourceInfo,
 			final GlobalTransformManager transformManager,
-			final Mode mode )
+			final Mode mode,
+			final ExecutorService es )
 	{
 		super();
 		this.viewer = viewer;
@@ -64,7 +68,8 @@ public class RenderNeuron
 		this.sourceInfo = sourceInfo;
 		this.transformManager = transformManager;
 		this.mode = mode;
-		this.neurons = new NeuronsFX( sourceInfo, meshesGroup, mode );
+		this.es = es;
+		this.neurons = new NeuronsFX( sourceInfo, meshesGroup, mode, this.es );
 	}
 
 	public void click( final MouseEvent e )

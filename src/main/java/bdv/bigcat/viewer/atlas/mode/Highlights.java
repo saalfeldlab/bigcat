@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.IdSelector;
@@ -29,16 +30,20 @@ public class Highlights extends AbstractStateMode
 
 	private final KeyTracker keyTracker;
 
+	private final ExecutorService es;
+
 	public Highlights(
 			final GlobalTransformManager transformManager,
 			final Group meshesGroup,
 			final SourceInfo sourceInfo,
-			final KeyTracker keyTracker )
+			final KeyTracker keyTracker,
+			final ExecutorService es )
 	{
 		this.transformManager = transformManager;
 		this.meshesGroup = meshesGroup;
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
+		this.es = es;
 	}
 
 	@Override
@@ -53,8 +58,8 @@ public class Highlights extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final RenderNeuron show = new RenderNeuron( t, meshesGroup, false, sourceInfo, transformManager, this );
-				final RenderNeuron append = new RenderNeuron( t, meshesGroup, true, sourceInfo, transformManager, this );
+				final RenderNeuron show = new RenderNeuron( t, meshesGroup, false, sourceInfo, transformManager, this, es );
+				final RenderNeuron append = new RenderNeuron( t, meshesGroup, true, sourceInfo, transformManager, this, es );
 				final IdSelector selector = new IdSelector( t, sourceInfo, this );
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", show::click, event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );

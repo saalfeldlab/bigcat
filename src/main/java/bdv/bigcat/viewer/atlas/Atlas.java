@@ -167,6 +167,8 @@ public class Atlas
 
 	private final VBox sourcesAndSettings;
 
+	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3 );
+
 	public Atlas( final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), cellCache );
@@ -954,7 +956,7 @@ public class Atlas
 	{
 		return new Mode[] {
 				new NavigationOnly(),
-				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker() ),
+				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker(), viewer.generalPurposeExecutorService ),
 				new Merges( viewer.sourceInfo() ),
 				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
 	}
