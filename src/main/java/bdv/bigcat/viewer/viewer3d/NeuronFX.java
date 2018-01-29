@@ -341,8 +341,11 @@ public class NeuronFX< T >
 								}
 								mesh.getFaces().addAll( faceIndices );
 								final PhongMaterial material = new PhongMaterial();
+								material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
+								material.setSpecularPower( 50 );
 								material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
 								final MeshView mv = new MeshView( mesh );
+								mv.setOpacity( 1.0 );
 								synchronized ( this.isVisible )
 								{
 									mv.visibleProperty().bind( this.isVisible );
