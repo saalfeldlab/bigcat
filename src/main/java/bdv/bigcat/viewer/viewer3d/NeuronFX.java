@@ -278,16 +278,19 @@ public class NeuronFX< T >
 		} );
 
 		this.colorLookupChanged.addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-				for ( final Entry< ShapeKey, MeshView > mesh : meshes.entrySet() )
-				{
-					final Material material = mesh.getValue().getMaterial();
-					if ( material instanceof PhongMaterial )
+			synchronized ( meshes )
+			{
+				if ( newv )
+					for ( final Entry< ShapeKey, MeshView > mesh : meshes.entrySet() )
 					{
-						final PhongMaterial pm = ( PhongMaterial ) material;
-						InvokeOnJavaFXApplicationThread.invoke( () -> pm.setDiffuseColor( fromInt( colorLookup.applyAsInt( mesh.getKey().shapeId() ) ) ) );
+						final Material material = mesh.getValue().getMaterial();
+						if ( material instanceof PhongMaterial )
+						{
+							final PhongMaterial pm = ( PhongMaterial ) material;
+							InvokeOnJavaFXApplicationThread.invoke( () -> pm.setDiffuseColor( fromInt( colorLookup.applyAsInt( mesh.getKey().shapeId() ) ) ) );
+						}
 					}
-				}
+			}
 		} );
 		this.changed.set( true );
 
