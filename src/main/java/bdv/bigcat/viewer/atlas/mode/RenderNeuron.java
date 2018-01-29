@@ -107,7 +107,7 @@ public class RenderNeuron
 
 						if ( Label.regular( selectedId ) )
 						{
-							System.out.println( "ABOUT TO RENDER!" );
+							LOG.debug( "About to render." );
 							final long segmentId = assignment.get().getSegment( selectedId );
 							final SelectedIds selIds = selectedIds.get();
 

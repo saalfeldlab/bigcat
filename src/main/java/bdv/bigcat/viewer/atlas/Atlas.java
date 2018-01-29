@@ -507,7 +507,9 @@ public class Atlas
 		}
 		{
 
+			// TODO make user prompt for this (block size, directory etc)
 			new Thread( () -> {
+				LOG.info( "Populating block list cache -- 3D rendering will be available once finished." );
 				final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
 				final int[][] blockSizes = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( i -> new int[] { 64, 64, 64 } ).toArray( int[][]::new );
 				final String dir = System.getProperty( "user.home" ) + "/local/tmp/blockCache";
@@ -518,7 +520,7 @@ public class Atlas
 					es.shutdown();
 					final DefaultBlockCache cache = new DefaultBlockCache( dir );
 					state.blocklistCacheProperty().set( cache );
-					System.out.print( "UPDATED THE BLOCK LIST CACHE!" );
+					LOG.info( "Updated the block list cache -- ready for 3D rendering." );
 				}
 				catch ( IOException | InterruptedException | ExecutionException e )
 				{
@@ -526,38 +528,12 @@ public class Atlas
 					e.printStackTrace();
 				}
 			} ).start();
-//			final TLongObjectHashMap< long[] > positionInFragment = new TLongObjectHashMap<>();
-//			System.out.println( "FILLING POSITION INFO!" );
-//			for ( final Cursor< UnsignedLongType > labelCursor = Views.iterable( state.getUnsignedLongSource( 0, 0 ) ).cursor(); labelCursor.hasNext(); )
-//			{
-//				final long fragmentId = labelCursor.next().get();
-//				if ( !positionInFragment.containsKey( fragmentId ) )
-//				{
-//					final long[] pos = new long[ labelCursor.numDimensions() ];
-//					labelCursor.localize( pos );
-//					positionInFragment.put( fragmentId, pos );
-//				}
-//			}
-//			System.out.println( "DONE POSITION INFO!" );
-
 			final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
 				final Interval interval = key.interval();
 				if ( interval == null )
 					return new ValuePair<>( new float[] {}, new float[] {} );
 
-				// TODO re-use other meshes to simplify
-//				final int simplificationIterations = key.meshSimplificationIterations();
-//				if ( simplificationIterations > 0 )
-//				{
-//					final ShapeKey otherKey = new ShapeKey( key.shapeId(), key.scaleIndex(), simplificationIterations - 1 );
-//					final Pair< float[], float[] > higherResMesh = cache.get( otherKey );
-//					return MarchingCubes.simplify( higherResMesh.getA(), higherResMesh.getB() );
-//				}
-
 				final RandomAccessibleInterval< UnsignedLongType > uls = state.getUnsignedLongSource( 0, key.scaleIndex() );
-				final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
-						Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ),
-						interval );
 
 				final AffineTransform3D transform = new AffineTransform3D();
 				spec.getSourceTransform( 0, key.scaleIndex(), transform );
@@ -584,6 +560,11 @@ public class Atlas
 
 				final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
 
+				final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
+						Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
+						Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ) );
+
+				// TODO enforce that blocks are consistent!
 				final float[] mesh = // applyTransformation(
 						new MarchingCubes<>( Views.extendZero( sameFragment ), sameFragment, transform, cubeSize ).generateMesh();
 //						transform );
