@@ -172,7 +172,7 @@ public class LART
 				"labels",
 				cellCache,
 				1 );
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null, null, null );
 
 		initialSolutionSocket.send( "" );
 		initialSolutionSocket.recv();

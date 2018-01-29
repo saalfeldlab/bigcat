@@ -104,7 +104,7 @@ public class ExampleApplication2
 		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null, null, null );
 		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
 		highlightsMode.ifPresent( mode -> {
 			viewer.getSettings().currentModeProperty().set( mode );
@@ -134,7 +134,7 @@ public class ExampleApplication2
 		if ( demonstrateRemove )
 		{
 			final HDF5LabelMultisetDataSource labelSpec3 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
-			viewer.addLabelSource( labelSpec3, labelSpec3.getAssignment(), null );
+			viewer.addLabelSource( labelSpec3, labelSpec3.getAssignment(), null, null, null );
 
 			Platform.runLater( () -> {
 				final Dialog< Boolean > d = new Dialog<>();

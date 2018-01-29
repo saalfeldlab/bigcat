@@ -10,6 +10,8 @@ import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
+import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.util.IdService;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
@@ -22,10 +24,15 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Cache;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.type.Type;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Pair;
 
 public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 {
@@ -76,6 +83,10 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final DoubleProperty selectionMax = new SimpleDoubleProperty( Double.NaN );
 
+	private final ObjectProperty< Cache< BlockListKey, long[] > > blockListCache = new SimpleObjectProperty<>( null );
+
+	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > > > meshesCache = new SimpleObjectProperty<>( null );
+
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
 		return new SourceAndConverter<>( dataSource.get(), converter.get() );
@@ -114,6 +125,25 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public ObjectProperty< MaskedSource< ?, ? > > maskedSourceProperty()
 	{
 		return this.maskedSource;
+	}
+
+	public RandomAccessibleInterval< UnsignedLongType > getUnsignedLongSource( final int t, final int level )
+	{
+		final ToIdConverter toIdConverter = toIdConverterProperty().get();
+
+		if ( toIdConverter == null )
+			return null;
+
+		final DataSource< D, T > dataSource = dataSourceProperty().get();
+
+		if ( dataSource == null )
+			return null;
+
+		return Converters.convert(
+				dataSource.getDataSource( t, level ),
+				( source, target ) -> target.set( toIdConverter.biggestFragment( source ) ),
+				new UnsignedLongType() );
+
 	}
 
 //	public static class LabelSourceState< T extends Type< T >, D extends Type< D > > extends AtlasSourceState< T, D >
@@ -180,6 +210,16 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public DoubleProperty selectionMaxProperty()
 	{
 		return this.selectionMax;
+	}
+
+	public ObjectProperty< Cache< BlockListKey, long[] > > blocklistCacheProperty()
+	{
+		return this.blockListCache;
+	}
+
+	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > > > meshesCacheProperty()
+	{
+		return this.meshesCache;
 	}
 
 	private static ARGBType toARGBType( final Color color )

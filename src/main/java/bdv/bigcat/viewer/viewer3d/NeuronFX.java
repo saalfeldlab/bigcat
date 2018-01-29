@@ -1,50 +1,47 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import java.lang.invoke.MethodHandles;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.IntStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.function.LongToIntFunction;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import bdv.bigcat.viewer.util.DecorateRunnable;
+import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.Property;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableFloatArray;
-import javafx.collections.ObservableList;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
-import javafx.scene.shape.ObservableFaceArray;
-import javafx.scene.shape.Shape3D;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.Localizable;
-import net.imglib2.Point;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RealPoint;
-import net.imglib2.cache.LoaderCache;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.BooleanType;
-import net.imglib2.util.Intervals;
+import net.imglib2.cache.Cache;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Pair;
 
-public class NeuronFX
+public class NeuronFX< T >
 {
 	public static class ShapeKey
 	{
@@ -52,33 +49,35 @@ public class NeuronFX
 
 		private final int scaleIndex;
 
-		private final long x;
-		private final long y;
-		private final long z;
+		private final int meshSimplificationIterations;
+
+		private final long[] min;
+
+		private final long[] max;
 
 		public ShapeKey(
 				final long shapeId,
 				final int scaleIndex,
-				final long x,
-				final long y,
-				final long z )
+				final int meshSimplificationIterations,
+				final long[] min,
+				final long[] max )
 		{
 			this.shapeId = shapeId;
 			this.scaleIndex = scaleIndex;
-			this.x = x;
-			this.y = y;
-			this.z = z;
+			this.meshSimplificationIterations = meshSimplificationIterations;
+			this.min = min;
+			this.max = max;
 		}
 
 		@Override
 		public int hashCode()
 		{
 			int result = scaleIndex;
-			result = 31 * result + (int) (shapeId ^ (shapeId >>> 32));
-			result = 31 * result + (int) (x ^ (x >>> 32));
-	        result = 31 * result + (int) (y ^ (y >>> 32));
-	        result = 31 * result + (int) (z ^ (z >>> 32));
-	        return result;
+			result = 31 * result + ( int ) ( shapeId ^ shapeId >>> 32 );
+			result = 31 * result + meshSimplificationIterations;
+			result = 31 * result + Arrays.hashCode( this.min );
+			result = 31 * result + Arrays.hashCode( this.max );
+			return result;
 		}
 
 		@Override
@@ -86,278 +85,274 @@ public class NeuronFX
 		{
 			if ( other instanceof ShapeKey )
 			{
-				final ShapeKey otherShapeKey = ( ShapeKey )other;
-				return ( shapeId == otherShapeKey.shapeId ) || ( x == otherShapeKey.x ) || ( y == otherShapeKey.y ) || ( z == otherShapeKey.z );
+				final ShapeKey otherShapeKey = ( ShapeKey ) other;
+				return shapeId == otherShapeKey.shapeId && otherShapeKey.scaleIndex == scaleIndex;
 			}
 			return false;
 		}
+
+		public long shapeId()
+		{
+			return this.shapeId;
+		}
+
+		public int scaleIndex()
+		{
+			return this.scaleIndex;
+		}
+
+		public int meshSimplificationIterations()
+		{
+			return this.meshSimplificationIterations;
+		}
+
+		public long[] min()
+		{
+			return min.clone();
+		}
+
+		public long[] max()
+		{
+			return max.clone();
+		}
+
+		public void min( final long[] min )
+		{
+			System.arraycopy( this.min, 0, min, 0, min.length );
+		}
+
+		public void max( final long[] max )
+		{
+			System.arraycopy( this.max, 0, max, 0, max.length );
+		}
+
+		public Interval interval()
+		{
+			return new FinalInterval( min, max );
+		}
+
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	public static class BlockListKey
+	{
 
-	private final Interval interval;
+		private final long id;
 
-	private final Group root;
+		private final int scaleIndex;
 
-	private final ObservableList< Future< ? > > futures = FXCollections.observableArrayList();
+		public BlockListKey( final long id, final int scaleIndex )
+		{
+			super();
+			this.id = id;
+			this.scaleIndex = scaleIndex;
+		}
 
-	private final Set< HashWrapper< long[] > > offsets = new HashSet<>();
+		public long id()
+		{
+			return this.id;
+		}
 
-	private boolean isCanceled = false;
+		public int scaleIndex()
+		{
+			return this.scaleIndex;
+		}
 
-	private final ObjectProperty< Group > meshes = new SimpleObjectProperty<>();
+		@Override
+		public int hashCode()
+		{
+			int result = scaleIndex;
+			result = 31 * result + ( int ) ( id ^ id >> 32 );
+			return result;
+		}
 
-	private final SimpleBooleanProperty isReady = new SimpleBooleanProperty( false );
+		@Override
+		public boolean equals( final Object other )
+		{
+			if ( other instanceof BlockListKey )
+			{
+				final BlockListKey otherKey = ( BlockListKey ) other;
+				return id == otherKey.id && scaleIndex == otherKey.scaleIndex;
+			}
+			return false;
+		}
 
-	private final AtomicLong futuresStartedCount = new AtomicLong( 0 );
+	}
 
-	private final AtomicLong futuresFinishedCount = new AtomicLong( 0 );
+	private final LongProperty segmentId;
 
-	private final ObjectProperty< Color > colorProperty = new SimpleObjectProperty<>();
+	private final Mode mode;
 
-	private final LoaderCache< ShapeKey, Shape3D > shapeCache;
+	private final T source;
 
-	public NeuronFX( final Interval interval, final Group root, final LoaderCache< ShapeKey, Shape3D > shapeCache )
+	private final FragmentSegmentAssignmentState< ? > assignment;
+
+	private final Cache< BlockListKey, long[] > blockListCache;
+
+	private final Cache< ShapeKey, Pair< float[], float[] > > meshCache;
+
+	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
+
+	private final ObservableMap< ShapeKey, MeshView > meshes = FXCollections.observableHashMap();
+
+	private final IntegerProperty scaleIndex = new SimpleIntegerProperty( 0 );
+
+	private final IntegerProperty meshSimplificationIteratoins = new SimpleIntegerProperty( 0 );
+
+	private final BooleanProperty changed = new SimpleBooleanProperty( false );
+
+	private final BooleanProperty colorLookupChanged = new SimpleBooleanProperty( false );
+
+	private final ObjectProperty< Group > root = new SimpleObjectProperty<>();
+
+	private final BooleanProperty isReady = new SimpleBooleanProperty( true );
+
+	private final LongToIntFunction colorLookup;
+
+	//
+	public NeuronFX(
+			final long segmentId,
+			final T source,
+			final Mode mode,
+			final FragmentSegmentAssignmentState< ? > assignment,
+			final Cache< BlockListKey, long[] > blockListCache,
+			final Cache< ShapeKey, Pair< float[], float[] > > meshCache,
+			final ObservableBooleanValue colorLookupChanged,
+			final LongToIntFunction colorLookup )
 	{
 		super();
-		this.interval = interval;
-		this.root = root;
-		this.shapeCache = shapeCache;
-		meshes.addListener( ( obsv, oldv, newv ) -> {
-			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( oldv ) );
-			if ( newv != null )
-				InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( newv ) );
-		} );
-	}
+		this.segmentId = new SimpleLongProperty( segmentId );
+		this.source = source;
+		this.mode = mode;
+		this.assignment = assignment;
+		this.blockListCache = blockListCache;
+		this.meshCache = meshCache;
+		this.colorLookup = colorLookup;
 
-	public < B extends BooleanType< B > > void render(
-			final Localizable initialLocationInImageCoordinates,
-			final RandomAccessible< B > data,
-			final AffineTransform3D toWorldCoordinates,
-			final int[] blockSize,
-			final int[] cubeSize,
-			final int color,
-			final ExecutorService es )
-	{
-		cancel();
-		this.futuresStartedCount.set( 0 );
-		this.futuresFinishedCount.set( 0 );
-		this.isCanceled = false;
-		this.isReady.set( false );
-		this.meshes.set( new Group() );
-		setColor( color );
-		final long[] gridCoordinates = new long[ initialLocationInImageCoordinates.numDimensions() ];
-		initialLocationInImageCoordinates.localize( gridCoordinates );
-		for ( int i = 0; i < gridCoordinates.length; ++i )
-			gridCoordinates[ i ] /= blockSize[ i ];
-		submitForOffset( gridCoordinates, data, toWorldCoordinates, blockSize, cubeSize, color, es );
-	}
+		this.changed.addListener( ( obs, oldv, newv ) -> updateMeshes() );
+		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
+		this.segmentIdProperty().addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+		this.assignment.addListener( () -> changed.set( true ) );
+		this.colorLookupChanged.bind( colorLookupChanged );
+		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, meshSimplificationIteratoins );
+		scaleOrSimplificationChanged.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
-	public void cancel()
-	{
-		synchronized ( futures )
-		{
-			this.isCanceled = true;
-			this.offsets.clear();
-			this.futures.forEach( future -> future.cancel( true ) );
-			this.futures.clear();
-		}
-	}
-
-	public void removeSelf() throws InterruptedException
-	{
-		cancel();
-		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-			this.meshes.set( null );
-		} );
-	}
-
-	public void removeSelfUnchecked()
-	{
-		try
-		{
-			removeSelf();
-		}
-		catch ( final InterruptedException e )
-		{
-			LOG.debug( "Was interrupted when removing neuron!", e );
-		}
-	}
-
-	public ObjectProperty< Color > colorProperty()
-	{
-		return this.colorProperty;
-	}
-
-	public void setColor( final int color )
-	{
-		colorProperty.set( Color.rgb( ( color & 0x00ff0000 ) >>> 16, ( color & 0x0000ff00 ) >>> 8, color & 0xff, 1.0 ) );
-	}
-
-	private < B extends BooleanType< B > > void submitForOffset(
-			final long[] gridCoordinates,
-			final RandomAccessible< B > data,
-			final AffineTransform3D toWorldCoordinates,
-			final int[] blockSize,
-			final int[] cubeSize,
-			final int color,
-			final ExecutorService es )
-	{
-		final HashWrapper< long[] > offset = HashWrapper.longArray( gridCoordinates );
-		final long[] coordinates = IntStream.range( 0, gridCoordinates.length ).mapToLong( d -> gridCoordinates[ d ] * blockSize[ d ] ).toArray();
-//		final TriangleMesh mesh = ( TriangleMesh ) this.node.getMesh();
-
-		synchronized ( offsets )
-		{
-			if ( isCanceled || offsets.contains( offset ) || !Intervals.contains( this.interval, new Point( coordinates ) ) )
-				return;
-			offsets.add( offset );
-		}
-		final Group meshes = this.meshes.get();
-		if ( !isCanceled && meshes != null )
-		{
-			final Future< ? > future = es.submit(
-					DecorateRunnable.beforeAndAfter(
-							() -> generateMesh( data, gridCoordinates, coordinates, blockSize, cubeSize, toWorldCoordinates, color, meshes, es ),
-							futuresStartedCount::incrementAndGet,
-							this::incrementFuturesFinishedCount ) );
-			synchronized ( futures )
-			{
-				futures.add( future );
-			}
-		}
-	}
-
-	private static MeshView initializeMeshView( final float[] vertices, final Property< Color > color )
-	{
-		final TriangleMesh mesh = new TriangleMesh();
-		mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-
-		final MeshView meshView = new MeshView();
-		meshView.setCullFace( CullFace.NONE );
-
-		final PhongMaterial material = new PhongMaterial();
-		meshView.setOpacity( 1.0 );
-		material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
-		material.setSpecularPower( 50 );
-		material.diffuseColorProperty().bind( color );
-		meshView.setMaterial( material );
-
-		final float[] normals = new float[ vertices.length ];
-		MarchingCubes.averagedSurfaceNormals( vertices, normals );
-		for ( int i = 0; i < normals.length; ++i )
-			normals[ i ] *= -1;
-
-		final ObservableFloatArray meshVertices = mesh.getPoints();
-		final ObservableFloatArray meshNormals = mesh.getNormals();
-		final ObservableFaceArray faces = mesh.getFaces();
-		final int[] faceIndices = new int[ vertices.length ];
-		for ( int i = 0, k = 0; i < vertices.length; i += 3, ++k )
-		{
-			faceIndices[ i + 0 ] = k;
-			faceIndices[ i + 1 ] = k;
-			faceIndices[ i + 2 ] = 0;
-		}
-
-		mesh.getTexCoords().addAll( 0, 0 );
-		meshVertices.addAll( vertices );
-		meshNormals.addAll( normals );
-		faces.addAll( faceIndices );
-
-		meshView.setMesh( mesh );
-
-		return meshView;
-
-	}
-
-	public Group meshes()
-	{
-		return this.meshes.get();
-	}
-
-	public BooleanProperty isReadyProperty()
-	{
-		return isReady;
-	}
-
-	private void incrementFuturesFinishedCount()
-	{
-		final long finishedCount = futuresFinishedCount.incrementAndGet();
-		final long startedCount = futuresStartedCount.get();
-		if ( !isCanceled && finishedCount == startedCount )
-			isReady.set( true );
-	}
-
-	private < B extends BooleanType< B > > void generateMesh(
-			final RandomAccessible< B > data,
-			final long[] gridCoordinates,
-			final long[] coordinates,
-			final int[] blockSize,
-			final int[] cubeSize,
-			final AffineTransform3D toWorldCoordinates,
-			final int color,
-			final Group meshes,
-			final ExecutorService es )
-	{
-		final Interval interval = new FinalInterval(
-				coordinates,
-				IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
-
-		final RealPoint begin = new RealPoint( interval.numDimensions() );
-		final RealPoint end = new RealPoint( interval.numDimensions() );
-
-		for ( int i = 0; i < interval.numDimensions(); i++ )
-		{
-			begin.setPosition( interval.min( i ), i );
-			end.setPosition( interval.max( i ), i );
-		}
-		toWorldCoordinates.apply( begin, begin );
-		toWorldCoordinates.apply( end, end );
-
-		final float[] size = new float[ begin.numDimensions() ];
-		final float[] center = new float[ begin.numDimensions() ];
-		for ( int i = 0; i < begin.numDimensions(); i++ )
-		{
-			size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
-			center[ i ] = begin.getFloatPosition( i ) + size[ i ] / 2;
-		}
-		final Box chunk = new Box( size[ 0 ], size[ 1 ], size[ 2 ] );
-		chunk.setTranslateX( center[ 0 ] );
-		chunk.setTranslateY( center[ 1 ] );
-		chunk.setTranslateZ( center[ 2 ] );
-
-		final PhongMaterial chunkMaterial = new PhongMaterial();
-		chunkMaterial.diffuseColorProperty().bind( this.colorProperty );
-		chunk.setMaterial( chunkMaterial );
-		chunk.setOpacity( 0.3 );
-
-		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
-
-//		shapeCache.get( new ShapeKey( shapeId, scaleIndex, x, y, z ), loader );
-		final MarchingCubes< B > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
-		final float[] vertices = mc.generateMesh();
-
-		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
-
-		if ( vertices.length > 0 )
-		{
-			final MeshView mv = initializeMeshView( vertices, this.colorProperty );
-
-			if ( !isCanceled )
-			{
-				InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
-
-				for ( int d = 0; d < gridCoordinates.length; ++d )
+		this.root.addListener( ( obs, oldv, newv ) -> {
+			InvokeOnJavaFXApplicationThread.invoke( () -> {
+				synchronized ( this.meshes )
 				{
-					final long[] otherGridCoordinates = gridCoordinates.clone();
-					otherGridCoordinates[ d ] += 1;
-					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
+					Optional.ofNullable( oldv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().remove( mesh ) ) );
+					Optional.ofNullable( newv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().add( mesh ) ) );
+				}
+			} );
+		} );
 
-					otherGridCoordinates[ d ] -= 2;
-					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
+		this.meshes.addListener( ( MapChangeListener< ShapeKey, MeshView > ) change -> {
+			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
+				if ( change.wasRemoved() )
+					group.getChildren().remove( change.getValueRemoved() );
+				else if ( change.wasAdded() )
+					group.getChildren().add( change.getValueAdded() );
+			} );
+		} );
+
+		this.colorLookupChanged.addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+				for ( final Entry< ShapeKey, MeshView > mesh : meshes.entrySet() )
+				{
+					final Material material = mesh.getValue().getMaterial();
+					if ( material instanceof PhongMaterial )
+					{
+						final PhongMaterial pm = ( PhongMaterial ) material;
+						InvokeOnJavaFXApplicationThread.invoke( () -> pm.setDiffuseColor( fromInt( colorLookup.applyAsInt( mesh.getKey().shapeId() ) ) ) );
+					}
+				}
+		} );
+
+		this.changed.set( false );
+		this.changed.set( true );
+
+	}
+
+	private void updateMeshes()
+	{
+		final HashMap< ShapeKey, MeshView > meshes = new HashMap<>();
+		final TLongHashSet fragments = assignment.getFragments( segmentId.get() );
+		fragments.forEach( id -> {
+			final int scaleIndex = this.scaleIndex.get();
+			try
+			{
+				final long[] blocks = blockListCache.get( new BlockListKey( id, scaleIndex ) );
+				final List< ShapeKey > keys = new ArrayList<>();
+				for ( int i = 0; i < blocks.length; i += 6 )
+				{
+					final long[] min = new long[] { blocks[ i + 0 ], blocks[ i + 1 ], blocks[ i + 2 ] };
+					final long[] max = new long[] { blocks[ i + 3 ], blocks[ i + 4 ], blocks[ i + 5 ] };
+					keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), min, max ) );
+				}
+				for ( final ShapeKey key : keys )
+				{
+					final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
+					final float[] vertices = verticesAndNormals.getA();
+					final float[] normals = verticesAndNormals.getB();
+					final TriangleMesh mesh = new TriangleMesh();
+					mesh.getPoints().addAll( vertices );
+					mesh.getNormals().addAll( normals );
+					mesh.getTexCoords().addAll( 0, 0 );
+					mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+					final int[] faceIndices = new int[ vertices.length ];
+					for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+					{
+						faceIndices[ i + 0 ] = k;
+						faceIndices[ i + 1 ] = k;
+						faceIndices[ i + 2 ] = 0;
+					}
+					mesh.getFaces().addAll( faceIndices );
+					final PhongMaterial material = new PhongMaterial();
+					material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
+					final MeshView mv = new MeshView( mesh );
+					mv.visibleProperty().bind( this.isVisible );
+					mv.setCullFace( CullFace.NONE );
+					mv.setMaterial( material );
+					meshes.put( key, mv );
 				}
 			}
+			catch ( final ExecutionException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return true;
+		} );
+		synchronized ( meshes )
+		{
+			this.meshes.clear();
+			this.meshes.putAll( meshes );
 		}
+	}
+
+	private static final Color fromInt( final int argb )
+	{
+		return Color.rgb( ARGBType.red( argb ), ARGBType.green( argb ), ARGBType.blue( argb ), 1.0 );
+	}
+
+	public T getSource()
+	{
+		return source;
+	}
+
+	public long getSegmentId()
+	{
+		return segmentId.get();
+	}
+
+	public LongProperty segmentIdProperty()
+	{
+		return this.segmentId;
+	}
+
+	public ObjectProperty< Group > rootProperty()
+	{
+		return this.root;
 	}
 
 }

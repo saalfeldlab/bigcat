@@ -12,16 +12,17 @@ import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
+import javafx.collections.ListChangeListener;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 
 public class Highlights extends AbstractStateMode
 {
 
-	private final Viewer3DControllerFX v3dControl;
-
 	private final GlobalTransformManager transformManager;
+
+	private final Group meshesGroup;
 
 	private final SourceInfo sourceInfo;
 
@@ -30,15 +31,16 @@ public class Highlights extends AbstractStateMode
 	private final KeyTracker keyTracker;
 
 	public Highlights(
-			final Viewer3DControllerFX v3dControl,
 			final GlobalTransformManager transformManager,
+			final Group meshesGroup,
 			final SourceInfo sourceInfo,
 			final KeyTracker keyTracker )
 	{
-		this.v3dControl = v3dControl;
 		this.transformManager = transformManager;
+		this.meshesGroup = meshesGroup;
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
+		meshesGroup.getChildren().addListener( ( ListChangeListener< Node > ) change -> System.out.println( meshesGroup.getChildren() ) );
 	}
 
 	@Override
@@ -53,8 +55,8 @@ public class Highlights extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final RenderNeuron show = new RenderNeuron( t, false, sourceInfo, v3dControl, transformManager, this );
-				final RenderNeuron append = new RenderNeuron( t, true, sourceInfo, v3dControl, transformManager, this );
+				final RenderNeuron show = new RenderNeuron( t, meshesGroup, false, sourceInfo, transformManager, this );
+				final RenderNeuron append = new RenderNeuron( t, meshesGroup, true, sourceInfo, transformManager, this );
 				final IdSelector selector = new IdSelector( t, sourceInfo, this );
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", show::click, event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );

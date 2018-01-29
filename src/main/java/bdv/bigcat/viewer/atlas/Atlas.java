@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,6 +10,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -53,9 +57,11 @@ import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
+import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
-import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
+import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -91,11 +97,15 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -106,6 +116,8 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 
 public class Atlas
 {
@@ -133,8 +145,6 @@ public class Atlas
 	private final ViewerOptions viewerOptions;
 
 	private final Viewer3DFX renderView;
-
-	private final Viewer3DControllerFX controller;
 
 	private final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
 
@@ -240,7 +250,6 @@ public class Atlas
 		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
-		this.controller = new Viewer3DControllerFX( renderView );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
@@ -405,7 +414,9 @@ public class Atlas
 	public void addLabelSource(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
-			final IdService idService )
+			final IdService idService,
+			final Cache< BlockListKey, long[] > blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
@@ -487,6 +498,103 @@ public class Atlas
 				};
 			}
 		} );
+
+		// TODO DO NOT DO THIS ITERATION THING HERE!!!!
+		if ( meshCache != null && blocksThatContainId != null )
+		{
+			state.meshesCacheProperty().set( meshCache );
+			state.blocklistCacheProperty().set( blocksThatContainId );
+		}
+		{
+
+			new Thread( () -> {
+				final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
+				final int[][] blockSizes = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( i -> new int[] { 64, 64, 64 } ).toArray( int[][]::new );
+				final String dir = System.getProperty( "user.home" ) + "/local/tmp/blockCache";
+				try
+				{
+					final ExecutorService es = Executors.newFixedThreadPool( 3 );
+					DefaultBlockCache.generateData( labels, blockSizes, dir, es );
+					es.shutdown();
+					final DefaultBlockCache cache = new DefaultBlockCache( dir );
+					state.blocklistCacheProperty().set( cache );
+					System.out.print( "UPDATED THE BLOCK LIST CACHE!" );
+				}
+				catch ( IOException | InterruptedException | ExecutionException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} ).start();
+//			final TLongObjectHashMap< long[] > positionInFragment = new TLongObjectHashMap<>();
+//			System.out.println( "FILLING POSITION INFO!" );
+//			for ( final Cursor< UnsignedLongType > labelCursor = Views.iterable( state.getUnsignedLongSource( 0, 0 ) ).cursor(); labelCursor.hasNext(); )
+//			{
+//				final long fragmentId = labelCursor.next().get();
+//				if ( !positionInFragment.containsKey( fragmentId ) )
+//				{
+//					final long[] pos = new long[ labelCursor.numDimensions() ];
+//					labelCursor.localize( pos );
+//					positionInFragment.put( fragmentId, pos );
+//				}
+//			}
+//			System.out.println( "DONE POSITION INFO!" );
+
+			final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
+				final Interval interval = key.interval();
+				if ( interval == null )
+					return new ValuePair<>( new float[] {}, new float[] {} );
+
+				// TODO re-use other meshes to simplify
+//				final int simplificationIterations = key.meshSimplificationIterations();
+//				if ( simplificationIterations > 0 )
+//				{
+//					final ShapeKey otherKey = new ShapeKey( key.shapeId(), key.scaleIndex(), simplificationIterations - 1 );
+//					final Pair< float[], float[] > higherResMesh = cache.get( otherKey );
+//					return MarchingCubes.simplify( higherResMesh.getA(), higherResMesh.getB() );
+//				}
+
+				final RandomAccessibleInterval< UnsignedLongType > uls = state.getUnsignedLongSource( 0, key.scaleIndex() );
+				final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
+						Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ),
+						interval );
+
+				final AffineTransform3D transform = new AffineTransform3D();
+				spec.getSourceTransform( 0, key.scaleIndex(), transform );
+
+				final double[] a = transform.getRowPackedCopy();
+				final double scaleX = Math.sqrt(
+						a[ 0 ] * a[ 0 ] +
+								a[ 4 ] * a[ 4 ] +
+								a[ 8 ] * a[ 8 ] );
+				final double scaleY = Math.sqrt(
+						a[ 1 ] * a[ 1 ] +
+								a[ 5 ] * a[ 5 ] +
+								a[ 9 ] * a[ 9 ] );
+				final double scaleZ = Math.sqrt(
+						a[ 2 ] * a[ 2 ] +
+								a[ 6 ] * a[ 6 ] +
+								a[ 10 ] * a[ 10 ] );
+
+				final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
+				final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
+				final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
+				final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
+				final int maxBlockScale = ( int ) Math.ceil( 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
+
+				final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
+
+				final float[] mesh = // applyTransformation(
+						new MarchingCubes<>( Views.extendZero( sameFragment ), sameFragment, transform, cubeSize ).generateMesh();
+//						transform );
+				final float[] normals = new float[ mesh.length ];
+				MarchingCubes.averagedSurfaceNormals( mesh, normals );
+
+				return new ValuePair<>( mesh, normals );
+			} );
+
+			state.meshesCacheProperty().set( cache );
+		}
 
 	}
 
@@ -870,11 +978,6 @@ public class Atlas
 		return sourceInfo.selectedIds( source, mode );
 	}
 
-	public Viewer3DControllerFX get3DController()
-	{
-		return this.controller;
-	}
-
 	public GlobalTransformManager transformManager()
 	{
 		return this.baseView().getState().transformManager();
@@ -929,7 +1032,7 @@ public class Atlas
 	{
 		return new Mode[] {
 				new NavigationOnly(),
-				new Highlights( viewer.get3DController(), viewer.transformManager(), viewer.sourceInfo(), viewer.keyTracker() ),
+				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker() ),
 				new Merges( viewer.sourceInfo() ),
 				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
 	}
