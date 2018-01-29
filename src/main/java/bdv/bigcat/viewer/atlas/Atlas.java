@@ -51,11 +51,13 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
+import bdv.bigcat.viewer.viewer3d.NeuronsFX;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
@@ -449,6 +451,8 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
+		new NeuronsFX( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
+
 		view.addActor( new ViewerActor()
 		{
 
@@ -530,6 +534,8 @@ public class Atlas
 		final AffineTransform3D affine = new AffineTransform3D();
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
+
+		new NeuronsFX( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{
@@ -979,13 +985,13 @@ public class Atlas
 
 			final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
 
-			final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
-					Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
-					Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ) );
-
 			// TODO enforce that blocks are consistent!
 			final float[] mesh = // applyTransformation(
-					new MarchingCubes<>( Views.extendZero( sameFragment ), sameFragment, transform, cubeSize ).generateMesh();
+					new MarchingCubes<>(
+							Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
+							Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ),
+							transform,
+							cubeSize ).generateMesh();
 //						transform );
 			final float[] normals = new float[ mesh.length ];
 			MarchingCubes.averagedSurfaceNormals( mesh, normals );

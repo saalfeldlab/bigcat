@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -51,18 +52,14 @@ public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultis
 			final VolatileGlobalCellCache cellCache,
 			final int setupId ) throws IOException
 	{
-		this( path, dataset, cellSize, action -> {}, () -> {
-			try
-			{
-				Thread.sleep( 1000 );
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			return null;
-		}, TLongLongHashMap::new, name, cellCache, setupId );
+		super();
+		final IHDF5Reader h5reader = HDF5Factory.openForReading( path );
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, setupId, cellSize, cellCache );
+		this.assignment = new FragmentSegmentAssignmentOnlyLocal();
+		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+		this.uri = "h5://" + path + "/dataset";
+		this.name = name;
+		this.setupId = setupId;
 	}
 
 	public HDF5LabelMultisetDataSource(

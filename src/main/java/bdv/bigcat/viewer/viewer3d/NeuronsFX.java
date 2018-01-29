@@ -1,135 +1,127 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
-import bdv.labels.labelset.Label;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.scene.Group;
-import net.imglib2.Localizable;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 /**
  *
  *
- * @author Vanessa Leite
  * @author Philipp Hanslovsky
- * @param <T>
- * @param <F>
  */
 public class NeuronsFX
 {
 
-	private final SourceInfo sourceInfo;
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final ObservableList< Pair< Localizable, NeuronFX< DataSource< ?, ? > > > > neurons = FXCollections.observableArrayList();
+	private final DataSource< ?, ? > source;
+
+	private final AtlasSourceState< ?, ? > state;
+
+	private final List< NeuronFX< DataSource< ?, ? > > > neurons = Collections.synchronizedList( new ArrayList<>() );
 
 	private final Group root;
 
-	private final Mode mode;
+	private final SelectedSegments< ? > selectedSegments;
 
 	private final ExecutorService es;
 
 	public NeuronsFX(
-			final SourceInfo sourceInfo,
+			final DataSource< ?, ? > source,
+			final AtlasSourceState< ?, ? > state,
 			final Group root,
-			final Mode mode,
+			final SelectedSegments< ? > selectedSegments,
 			final ExecutorService es )
 	{
 		super();
-		this.sourceInfo = sourceInfo;
+		this.source = source;
+		this.state = state;
 		this.root = root;
-		this.mode = mode;
+		this.selectedSegments = selectedSegments;
 		this.es = es;
+
+		this.selectedSegments.addListener( this::update );
+
 	}
 
-	public void addNeuronAt( final DataSource< ?, ? > source, final Localizable clickLocation )
+	private void update()
 	{
-		final AtlasSourceState< ?, ? > state = sourceInfo.getState( source );
-		if ( state == null )
-			return;
+		synchronized ( neurons )
+		{
+			// TODO when there's many neurons, maybe don't remove those that are
+			// active.
+			final TLongHashSet selectedSegments = new TLongHashSet( this.selectedSegments.getSelectedSegments() );
+			neurons.forEach( this::removeNeuron );
+			neurons.clear();
+			Arrays.stream( selectedSegments.toArray() ).forEach( segment -> addNeuronAt( source, segment ) );
+		}
+	}
 
-		final FragmentSegmentAssignmentState< ? > assignmentForSource = state.assignmentProperty().get();
-		if ( assignmentForSource == null )
-			return;
+	private void addNeuronAt( final DataSource< ?, ? > source, final long segment )
+	{
 
+		final FragmentSegmentAssignmentState< ? > assignment = state.assignmentProperty().get();
+		if ( assignment == null )
+			return;
 		final ARGBStream streams = state.streamProperty().get();
+
 		if ( streams == null || !( streams instanceof AbstractHighlightingARGBStream ) )
 			return;
+
 		final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) streams;
 		final BooleanProperty colorLookupChanged = new SimpleBooleanProperty( false );
 		stream.addListener( () -> colorLookupChanged.set( true ) );
 		colorLookupChanged.addListener( ( obs, oldv, newv ) -> colorLookupChanged.set( false ) );
-
-		final RandomAccessibleInterval< UnsignedLongType > unsignedLongSource = state.getUnsignedLongSource( 0, 0 );
-		if ( unsignedLongSource == null )
-			return;
-
-		final RandomAccess< UnsignedLongType > access = unsignedLongSource.randomAccess();
-		access.setPosition( clickLocation );
-		final long fragmentId = access.get().get();
 
 		final Cache< BlockListKey, long[] > blockListCache = state.blocklistCacheProperty().get();
 		final Cache< ShapeKey, Pair< float[], float[] > > meshCache = state.meshesCacheProperty().get();
 		if ( meshCache == null || blockListCache == null )
 			return;
 
-		if ( Label.regular( fragmentId ) && fragmentId != Label.BACKGROUND )
-		{
-			final long segmentId = assignmentForSource.getSegment( fragmentId );
+		for ( final NeuronFX< DataSource< ?, ? > > neuron : neurons )
+			if ( neuron.getSource() == source && neuron.getSegmentId() == segment )
+				return;
 
-			for ( final Pair< Localizable, NeuronFX< DataSource< ?, ? > > > neuron : neurons )
-				if ( neuron.getB().getSource() == source && neuron.getB().getSegmentId() == segmentId )
-					return;
+		LOG.debug( "Adding mesh for segment {}.", segment );
+		final NeuronFX< DataSource< ?, ? > > nfx = new NeuronFX<>(
+				segment,
+				source,
+				assignment,
+				blockListCache,
+				meshCache,
+				colorLookupChanged,
+				stream::argb,
+				es );
+		nfx.rootProperty().set( this.root );
 
-			final NeuronFX< DataSource< ?, ? > > nfx = new NeuronFX<>(
-					segmentId,
-					source,
-					mode,
-					assignmentForSource,
-					blockListCache,
-					meshCache,
-					colorLookupChanged,
-					stream::argb,
-					es );
-			nfx.rootProperty().set( this.root );
+		neurons.add( nfx );
 
-			neurons.add( new ValuePair<>( clickLocation, nfx ) );
-
-			assignmentForSource.addListener( () -> nfx.segmentIdProperty().set( assignmentForSource.getSegment( fragmentId ) ) );
-
-		}
 	}
 
-	public void removeNeuron( final DataSource< ?, ? > source, final long segmentId )
+	public void removeNeuron( final NeuronFX< DataSource< ?, ? > > neuron )
 	{
-		synchronized ( neurons )
-		{
-			final List< Pair< Localizable, NeuronFX< DataSource< ?, ? > > > > removal = neurons
-					.stream()
-					.filter( n -> n.getB().getSegmentId() == segmentId )
-					.collect( Collectors.toList() );
-			neurons.removeAll( removal );
-			removal.forEach( n -> n.getB().rootProperty().set( null ) );
-		}
+		neuron.rootProperty().set( null );
 	}
 
 }

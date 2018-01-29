@@ -58,12 +58,10 @@ public class Highlights extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final RenderNeuron show = new RenderNeuron( t, meshesGroup, false, sourceInfo, transformManager, this, es );
-				final RenderNeuron append = new RenderNeuron( t, meshesGroup, true, sourceInfo, transformManager, this, es );
 				final IdSelector selector = new IdSelector( t, sourceInfo, this );
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
-				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", show::click, event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );
-				iars.add( selector.appendFragmentWithMaximumCount( "append id", append::click, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
+				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );
+				iars.add( selector.appendFragmentWithMaximumCount( "append id", event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
 				this.mouseAndKeyHandlers.put( t, iars );
 			}
 //			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );

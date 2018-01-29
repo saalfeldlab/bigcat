@@ -18,7 +18,9 @@ public class AbstractState< T extends AbstractState< T > >
 
 	protected void stateChanged()
 	{
-		listeners.forEach( StateListener::stateChanged );
+		for ( final StateListener< T > listener : listeners )
+			listener.stateChanged();
+//		listeners.forEach( StateListener::stateChanged );
 	}
 
 }

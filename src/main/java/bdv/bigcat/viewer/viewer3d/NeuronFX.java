@@ -14,8 +14,7 @@ import java.util.function.LongToIntFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.mode.Mode;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
@@ -46,6 +45,12 @@ import net.imglib2.cache.Cache;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 
+/**
+ *
+ * @author Philipp Hanslovsky
+ *
+ * @param <T>
+ */
 public class NeuronFX< T >
 {
 
@@ -194,11 +199,9 @@ public class NeuronFX< T >
 
 	private final LongProperty segmentId;
 
-	private final Mode mode;
-
 	private final T source;
 
-	private final FragmentSegmentAssignmentState< ? > assignment;
+	private final FragmentSegmentAssignment assignment;
 
 	private final Cache< BlockListKey, long[] > blockListCache;
 
@@ -224,12 +227,13 @@ public class NeuronFX< T >
 
 	private final ExecutorService es;
 
+	private final List< Future< ? > > activeTasks = new ArrayList<>();
+
 	//
 	public NeuronFX(
 			final long segmentId,
 			final T source,
-			final Mode mode,
-			final FragmentSegmentAssignmentState< ? > assignment,
+			final FragmentSegmentAssignment assignment,
 			final Cache< BlockListKey, long[] > blockListCache,
 			final Cache< ShapeKey, Pair< float[], float[] > > meshCache,
 			final ObservableBooleanValue colorLookupChanged,
@@ -239,7 +243,6 @@ public class NeuronFX< T >
 		super();
 		this.segmentId = new SimpleLongProperty( segmentId );
 		this.source = source;
-		this.mode = mode;
 		this.assignment = assignment;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
@@ -249,7 +252,6 @@ public class NeuronFX< T >
 		this.changed.addListener( ( obs, oldv, newv ) -> updateMeshes() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
 		this.segmentIdProperty().addListener( ( obs, oldv, newv ) -> changed.set( true ) );
-		this.assignment.addListener( () -> changed.set( true ) );
 		this.colorLookupChanged.bind( colorLookupChanged );
 		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, meshSimplificationIteratoins );
 
@@ -296,6 +298,12 @@ public class NeuronFX< T >
 		{
 			this.meshes.clear();
 		}
+
+		synchronized ( activeTasks )
+		{
+			this.activeTasks.forEach( f -> f.cancel( true ) );
+			this.activeTasks.clear();
+		}
 		final TLongHashSet fragments = assignment.getFragments( segmentId.get() );
 		fragments.forEach( id -> {
 			final int scaleIndex = this.scaleIndex.get();
@@ -310,54 +318,71 @@ public class NeuronFX< T >
 					keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), min, max ) );
 				}
 				final ArrayList< Future< Void > > tasks = new ArrayList<>();
-				for ( final ShapeKey key : keys )
-					tasks.add( es.submit( () -> {
-						try
-						{
-							final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
-							final float[] vertices = verticesAndNormals.getA();
-							final float[] normals = verticesAndNormals.getB();
-							final TriangleMesh mesh = new TriangleMesh();
-							mesh.getPoints().addAll( vertices );
-							mesh.getNormals().addAll( normals );
-							mesh.getTexCoords().addAll( 0, 0 );
-							mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-							final int[] faceIndices = new int[ vertices.length ];
-							for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+				synchronized ( this.activeTasks )
+				{
+					for ( final ShapeKey key : keys )
+						tasks.add( es.submit( () -> {
+							try
 							{
-								faceIndices[ i + 0 ] = k;
-								faceIndices[ i + 1 ] = k;
-								faceIndices[ i + 2 ] = 0;
+								final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
+								final float[] vertices = verticesAndNormals.getA();
+								final float[] normals = verticesAndNormals.getB();
+								final TriangleMesh mesh = new TriangleMesh();
+								mesh.getPoints().addAll( vertices );
+								mesh.getNormals().addAll( normals );
+								mesh.getTexCoords().addAll( 0, 0 );
+								mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+								final int[] faceIndices = new int[ vertices.length ];
+								for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+								{
+									faceIndices[ i + 0 ] = k;
+									faceIndices[ i + 1 ] = k;
+									faceIndices[ i + 2 ] = 0;
+								}
+								mesh.getFaces().addAll( faceIndices );
+								final PhongMaterial material = new PhongMaterial();
+								material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
+								final MeshView mv = new MeshView( mesh );
+								synchronized ( this.isVisible )
+								{
+									mv.visibleProperty().bind( this.isVisible );
+								}
+								mv.setCullFace( CullFace.NONE );
+								mv.setMaterial( material );
+								if ( !Thread.interrupted() )
+									synchronized ( meshes )
+									{
+										meshes.put( key, mv );
+									}
 							}
-							mesh.getFaces().addAll( faceIndices );
-							final PhongMaterial material = new PhongMaterial();
-							material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
-							final MeshView mv = new MeshView( mesh );
-							mv.visibleProperty().bind( this.isVisible );
-							mv.setCullFace( CullFace.NONE );
-							mv.setMaterial( material );
-							synchronized ( meshes )
+							catch ( final ExecutionException e )
 							{
-								meshes.put( key, mv );
+								LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
 							}
-						}
-						catch ( final ExecutionException e )
-						{
-							LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-						}
-						return null;
+							catch ( final RuntimeException e )
+							{
+								LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
+								e.printStackTrace();
+								throw e;
+							}
+							return null;
 
-					} ) );
+						} ) );
+					this.activeTasks.addAll( tasks );
+				}
 				for ( final Future< Void > future : tasks )
-					future.get();
+					try
+					{
+						future.get();
+					}
+					catch ( final Exception e )
+					{
+						LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
+						e.printStackTrace();
+					}
 			}
 			catch ( final ExecutionException e )
 			{
-				e.printStackTrace();
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			return true;
@@ -387,6 +412,11 @@ public class NeuronFX< T >
 	public ObjectProperty< Group > rootProperty()
 	{
 		return this.root;
+	}
+
+	public void redraw()
+	{
+		this.changed.set( true );
 	}
 
 }
