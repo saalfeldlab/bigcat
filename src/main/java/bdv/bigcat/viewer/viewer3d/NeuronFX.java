@@ -36,6 +36,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
@@ -352,6 +353,7 @@ public class NeuronFX< T >
 								}
 								mv.setCullFace( CullFace.NONE );
 								mv.setMaterial( material );
+								mv.setDrawMode( DrawMode.FILL );
 								if ( !Thread.interrupted() )
 									synchronized ( meshes )
 									{
