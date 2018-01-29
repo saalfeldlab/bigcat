@@ -105,6 +105,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
@@ -499,83 +500,13 @@ public class Atlas
 			}
 		} );
 
-		// TODO DO NOT DO THIS ITERATION THING HERE!!!!
 		if ( meshCache != null && blocksThatContainId != null )
 		{
 			state.meshesCacheProperty().set( meshCache );
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
-		{
-
-			// TODO make user prompt for this (block size, directory etc)
-			new Thread( () -> {
-				LOG.info( "Populating block list cache -- 3D rendering will be available once finished." );
-				final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
-				final int[][] blockSizes = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( i -> new int[] { 64, 64, 64 } ).toArray( int[][]::new );
-				final String dir = System.getProperty( "user.home" ) + "/local/tmp/blockCache";
-				try
-				{
-					final ExecutorService es = Executors.newFixedThreadPool( 3 );
-					DefaultBlockCache.generateData( labels, blockSizes, dir, es );
-					es.shutdown();
-					final DefaultBlockCache cache = new DefaultBlockCache( dir );
-					state.blocklistCacheProperty().set( cache );
-					LOG.info( "Updated the block list cache -- ready for 3D rendering." );
-				}
-				catch ( IOException | InterruptedException | ExecutionException e )
-				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			} ).start();
-			final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
-				final Interval interval = key.interval();
-				if ( interval == null )
-					return new ValuePair<>( new float[] {}, new float[] {} );
-
-				final RandomAccessibleInterval< UnsignedLongType > uls = state.getUnsignedLongSource( 0, key.scaleIndex() );
-
-				final AffineTransform3D transform = new AffineTransform3D();
-				spec.getSourceTransform( 0, key.scaleIndex(), transform );
-
-				final double[] a = transform.getRowPackedCopy();
-				final double scaleX = Math.sqrt(
-						a[ 0 ] * a[ 0 ] +
-								a[ 4 ] * a[ 4 ] +
-								a[ 8 ] * a[ 8 ] );
-				final double scaleY = Math.sqrt(
-						a[ 1 ] * a[ 1 ] +
-								a[ 5 ] * a[ 5 ] +
-								a[ 9 ] * a[ 9 ] );
-				final double scaleZ = Math.sqrt(
-						a[ 2 ] * a[ 2 ] +
-								a[ 6 ] * a[ 6 ] +
-								a[ 10 ] * a[ 10 ] );
-
-				final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
-				final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
-				final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
-				final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
-				final int maxBlockScale = ( int ) Math.ceil( 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
-
-				final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
-
-				final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
-						Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
-						Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ) );
-
-				// TODO enforce that blocks are consistent!
-				final float[] mesh = // applyTransformation(
-						new MarchingCubes<>( Views.extendZero( sameFragment ), sameFragment, transform, cubeSize ).generateMesh();
-//						transform );
-				final float[] normals = new float[ mesh.length ];
-				MarchingCubes.averagedSurfaceNormals( mesh, normals );
-
-				return new ValuePair<>( mesh, normals );
-			} );
-
-			state.meshesCacheProperty().set( cache );
-		}
+		else
+			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
 
 	}
 
@@ -586,7 +517,9 @@ public class Atlas
 			final DataSource< I, V > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final ToLongFunction< V > toLong,
-			final IdService idService )
+			final IdService idService,
+			final Cache< BlockListKey, long[] > blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
 	{
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
@@ -667,6 +600,14 @@ public class Atlas
 				};
 			}
 		} );
+
+		if ( meshCache != null && blocksThatContainId != null )
+		{
+			state.meshesCacheProperty().set( meshCache );
+			state.blocklistCacheProperty().set( blocksThatContainId );
+		}
+		else
+			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
 
 	}
 
@@ -1016,6 +957,80 @@ public class Atlas
 				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker() ),
 				new Merges( viewer.sourceInfo() ),
 				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
+	}
+
+	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+			final DataSource< D, T > spec,
+			final AtlasSourceState< T, D > state,
+			final String dir )
+	{
+		// TODO make user prompt for this (block size, directory etc)
+		new Thread( () -> {
+			LOG.info( "Populating block list cache -- 3D rendering will be available once finished." );
+			final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
+			final int[][] blockSizes = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( i -> new int[] { 64, 64, 64 } ).toArray( int[][]::new );
+			try
+			{
+				final ExecutorService es = Executors.newFixedThreadPool( 3 );
+				DefaultBlockCache.generateData( labels, blockSizes, dir, es );
+				es.shutdown();
+				final DefaultBlockCache cache = new DefaultBlockCache( dir );
+				state.blocklistCacheProperty().set( cache );
+				LOG.info( "Updated the block list cache -- ready for 3D rendering." );
+			}
+			catch ( IOException | InterruptedException | ExecutionException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} ).start();
+		final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
+			final Interval interval = key.interval();
+			if ( interval == null )
+				return new ValuePair<>( new float[] {}, new float[] {} );
+
+			final RandomAccessibleInterval< UnsignedLongType > uls = state.getUnsignedLongSource( 0, key.scaleIndex() );
+
+			final AffineTransform3D transform = new AffineTransform3D();
+			spec.getSourceTransform( 0, key.scaleIndex(), transform );
+
+			final double[] a = transform.getRowPackedCopy();
+			final double scaleX = Math.sqrt(
+					a[ 0 ] * a[ 0 ] +
+							a[ 4 ] * a[ 4 ] +
+							a[ 8 ] * a[ 8 ] );
+			final double scaleY = Math.sqrt(
+					a[ 1 ] * a[ 1 ] +
+							a[ 5 ] * a[ 5 ] +
+							a[ 9 ] * a[ 9 ] );
+			final double scaleZ = Math.sqrt(
+					a[ 2 ] * a[ 2 ] +
+							a[ 6 ] * a[ 6 ] +
+							a[ 10 ] * a[ 10 ] );
+
+			final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
+			final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
+			final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
+			final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
+			final int maxBlockScale = ( int ) Math.ceil( 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
+
+			final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
+
+			final RandomAccessibleInterval< BitType > sameFragment = Views.interval(
+					Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
+					Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ) );
+
+			// TODO enforce that blocks are consistent!
+			final float[] mesh = // applyTransformation(
+					new MarchingCubes<>( Views.extendZero( sameFragment ), sameFragment, transform, cubeSize ).generateMesh();
+//						transform );
+			final float[] normals = new float[ mesh.length ];
+			MarchingCubes.averagedSurfaceNormals( mesh, normals );
+
+			return new ValuePair<>( mesh, normals );
+		} );
+
+		state.meshesCacheProperty().set( cache );
 	}
 
 }
