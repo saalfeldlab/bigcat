@@ -160,7 +160,7 @@ public class SourceTabs
 		final VBox info = new VBox();
 
 		Optional.ofNullable( compositeInfo( state.compositeProperty() ) ).ifPresent( node -> info.getChildren().add( node ) );
-		Optional.ofNullable( converterInfo( conv ) ).ifPresent( node -> info.getChildren().add( node ) );
+		Optional.ofNullable( converterInfo( conv, state ) ).ifPresent( node -> info.getChildren().add( node ) );
 
 		return info;
 	}
@@ -255,7 +255,7 @@ public class SourceTabs
 		return tp;
 	}
 
-	private static Node converterInfo( final Converter< ?, ? > converter )
+	private static Node converterInfo( final Converter< ?, ? > converter, final AtlasSourceState< ?, ? > state )
 	{
 		final TitledPane tp = new TitledPane( "Converter", null );
 //		tp.setExpanded( false );
@@ -394,6 +394,14 @@ public class SourceTabs
 //				gp.add( colorFromSegmentId, 0, row );
 //				gp.add( new Label( "Color From segment Id." ), 1, row );
 //				++row;
+			}
+
+			{
+				if ( state.selectedIdsProperty().get() != null )
+				{
+					final SelectedIdsTextField selectedIdsField = new SelectedIdsTextField( state.selectedIdsProperty().get() );
+					contents.getChildren().add( selectedIdsField.textField() );
+				}
 			}
 
 			tp.setContent( contents );
