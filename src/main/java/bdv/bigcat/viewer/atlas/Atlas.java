@@ -9,15 +9,19 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +108,7 @@ import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
@@ -167,7 +172,29 @@ public class Atlas
 
 	private final VBox sourcesAndSettings;
 
-	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3 );
+	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new ThreadFactory()
+	{
+		final AtomicInteger i = new AtomicInteger();
+
+		@Override
+		public Thread newThread( final Runnable r )
+		{
+			final Thread thread = Executors.defaultThreadFactory().newThread( r );
+			thread.setName( Atlas.class.getSimpleName() + "-general-purpose-thread-" + i.getAndIncrement() );
+			return thread;
+		}
+	} );
+	{
+		try
+		{
+			generalPurposeExecutorService.invokeAll( Stream.generate( () -> ( Callable< Void > ) () -> null ).limit( 100 ).collect( Collectors.toList() ) );
+		}
+		catch ( final InterruptedException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 	public Atlas( final SharedQueue cellCache )
 	{
@@ -947,11 +974,26 @@ public class Atlas
 		new Thread( () -> {
 			LOG.info( "Populating block list cache -- 3D rendering will be available once finished." );
 			final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
-			final int[][] blockSizes = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( i -> new int[] { 64, 64, 64 } ).toArray( int[][]::new );
+			final int[][] blockSizes = new int[ labels.size() ][];
+			for ( int level = 0; level < labels.size(); ++level )
+			{
+				final RandomAccessibleInterval< D > data = spec.getDataSource( 0, level );
+				LOG.debug( "Source type: {}", data.getClass() );
+				if ( data instanceof AbstractCellImg< ?, ?, ?, ? > )
+				{
+					blockSizes[ level ] = IntStream.range( 0, data.numDimensions() ).map( d -> ( ( AbstractCellImg< ?, ?, ?, ? > ) data ).getCellGrid().cellDimension( d ) ).toArray();
+					LOG.debug( "Source at level {} is abstract cell img, inferring block size from source: {}.", level, Arrays.toString( blockSizes[ level ] ) );
+				}
+				else
+				{
+					blockSizes[ level ] = IntStream.generate( () -> 64 ).limit( data.numDimensions() ).toArray();
+					LOG.debug( "Cannot infer block size from source, using default block size at level {}: .", level, Arrays.toString( blockSizes[ level ] ) );
+				}
+			}
 			try
 			{
 				final ExecutorService es = Executors.newFixedThreadPool( 3 );
-				DefaultBlockCache.generateData( labels, blockSizes, dir, es );
+				DefaultBlockCache.generateData( labels, blockSizes, dir, es, 3 * 3 );
 				es.shutdown();
 				final DefaultBlockCache cache = new DefaultBlockCache( dir );
 				state.blocklistCacheProperty().set( cache );

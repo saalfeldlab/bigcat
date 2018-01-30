@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,12 +13,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
+import bdv.labels.labelset.Label;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.hash.TLongHashSet;
@@ -31,6 +38,8 @@ import net.imglib2.view.Views;
 
 public class DefaultBlockCache implements Cache< BlockListKey, long[] >
 {
+
+	private final static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final String baseDir;
 
@@ -87,20 +96,22 @@ public class DefaultBlockCache implements Cache< BlockListKey, long[] >
 			final List< RandomAccessibleInterval< UnsignedLongType > > labels,
 			final int[][] blockSizes,
 			final String dir,
-			final ExecutorService es ) throws IOException, InterruptedException, ExecutionException
+			final ExecutorService es,
+			final int numTasks ) throws IOException, InterruptedException, ExecutionException
 	{
 
 		final Path tmpDir = Files.createTempDirectory( "bigcat-default-block-cache" );
 
+		LOG.info( "Storing block locations at {}", tmpDir );
+
 		final List< Future< Void > > reduceTasks = new ArrayList<>();
 
-		for ( int level = 0; level < labels.size(); ++level )
+		for ( int level = labels.size() - 1; level >= 0; --level )
 		{
 			final File subDir = new File( tmpDir.toFile(), "" + level );
 			subDir.mkdirs();
 			final RandomAccessibleInterval< UnsignedLongType > label = labels.get( level );
 			final int[] blockSize = blockSizes[ level ];
-			final List< Future< Void > > mapTasks = new ArrayList<>();
 
 			final List< Interval > blocks = collectAllOffsets(
 					Intervals.minAsLongArray( label ),
@@ -113,42 +124,77 @@ public class DefaultBlockCache implements Cache< BlockListKey, long[] >
 						return new FinalInterval( min, max );
 					} );
 
-			for ( final Interval block : blocks )
-			{
-				final Callable< Void > task = () -> {
-					final TLongHashSet containedLabels = new TLongHashSet();
-					Views.interval( label, block ).forEach( l -> containedLabels.add( l.get() ) );
+			final int taskSize = Math.max( blocks.size() / numTasks, 1 );
+			final int actualNumberOfTasks = ( int ) Math.ceil( blocks.size() / ( 1.0 * taskSize ) );
+			final CountDownLatch countDown = new CountDownLatch( actualNumberOfTasks );
+			final AtomicInteger startedTasks = new AtomicInteger();
 
-					for ( final TLongIterator it = containedLabels.iterator(); it.hasNext(); )
+			for ( int taskStart = 0; taskStart < blocks.size(); taskStart += taskSize )
+			{
+				final List< Interval > subList = blocks.subList( taskStart, Math.min( taskStart + taskSize, blocks.size() ) );
+				final Callable< Void > task = () -> {
+					final String initialName = Thread.currentThread().getName();
+					try
 					{
-						final long l = it.next();
-						final File subSubDir = new File( subDir, "" + l );
-						subSubDir.mkdirs();
-						final byte[] data = new byte[ 3 * 2 * Long.BYTES ];
+						Thread.currentThread().setName( initialName + " -- generating label-block mapping " + tmpDir.toString() );
+						final int taskNumber = startedTasks.getAndIncrement();
+						LOG.debug( "Added task number {} for {} blocks", taskNumber, subList.size() );
+						final byte[] data = new byte[ label.numDimensions() * 2 * Long.BYTES ];
 						final ByteBuffer bb = ByteBuffer.wrap( data );
-						Arrays.stream( Intervals.minAsLongArray( block ) ).forEach( bb::putLong );
-						Arrays.stream( Intervals.maxAsLongArray( block ) ).forEach( bb::putLong );;
-						final StringBuilder sb = new StringBuilder();
-						final long[] m = Intervals.minAsLongArray( block );
-						final long[] M = Intervals.minAsLongArray( block );
-						sb
-								.append( m[ 0 ] ).append( "," ).append( m[ 1 ] ).append( "," ).append( m[ 2 ] ).append( "," )
-								.append( M[ 0 ] ).append( "," ).append( M[ 1 ] ).append( "," ).append( M[ 2 ] ).append( "," );
-						final File f = new File( subSubDir, sb.toString() );
-						f.createNewFile();
-						try (FileOutputStream fos = new FileOutputStream( f ))
+						final TLongHashSet containedLabels = new TLongHashSet();
+						for ( final Interval block : subList )
 						{
-							fos.write( data );
+							containedLabels.clear();
+							for ( final UnsignedLongType l : Views.interval( label, block ) )
+							{
+								final long id = l.get();
+								if ( Label.regular( id ) )
+									containedLabels.add( id );
+							}
+							LOG.trace( "Found {} labels in interval {}", containedLabels.size(), block );
+
+							for ( final TLongIterator it = containedLabels.iterator(); it.hasNext(); )
+							{
+								final long l = it.next();
+								final File subSubDir = new File( subDir, "" + l );
+								subSubDir.mkdirs();
+								bb.position( 0 );
+								Arrays.stream( Intervals.minAsLongArray( block ) ).forEach( bb::putLong );
+								Arrays.stream( Intervals.maxAsLongArray( block ) ).forEach( bb::putLong );;
+								final StringBuilder sb = new StringBuilder();
+								final long[] m = Intervals.minAsLongArray( block );
+								final long[] M = Intervals.minAsLongArray( block );
+								sb
+										.append( m[ 0 ] ).append( "," ).append( m[ 1 ] ).append( "," ).append( m[ 2 ] ).append( "," )
+										.append( M[ 0 ] ).append( "," ).append( M[ 1 ] ).append( "," ).append( M[ 2 ] );
+								final File f = new File( subSubDir, sb.toString() );
+								f.createNewFile();
+								try (FileOutputStream fos = new FileOutputStream( f ))
+								{
+									fos.write( data );
+								}
+							}
 						}
 					}
-
+					finally
+					{
+						synchronized ( countDown )
+						{
+							countDown.countDown();
+							LOG.debug( "Finished task -- {} to go.", countDown.getCount() );
+						}
+						Thread.currentThread().setName( initialName );
+					}
 					return null;
 				};
-				mapTasks.add( es.submit( task ) );
+				es.submit( task );
 			}
 
-			for ( final Future< Void > task : mapTasks )
-				task.get();
+			LOG.debug( "Submitted {} block location generation tasks for {} blocks.", actualNumberOfTasks, blocks.size() );
+
+			countDown.await();
+
+			LOG.info( "Done with generating block locations for level {}.", level );
 
 			final File targetSubDir = new File( dir, "" + level );
 			targetSubDir.mkdirs();

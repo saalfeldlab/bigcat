@@ -337,8 +337,11 @@ public class NeuronFX< T >
 			{
 				for ( final ShapeKey key : keys )
 					tasks.add( es.submit( () -> {
+						final String initialName = Thread.currentThread().getName();
 						try
 						{
+							Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
+							LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
 							final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
 							final float[] vertices = verticesAndNormals.getA();
 							final float[] normals = verticesAndNormals.getB();
@@ -383,6 +386,10 @@ public class NeuronFX< T >
 							LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
 							e.printStackTrace();
 							throw e;
+						}
+						finally
+						{
+							Thread.currentThread().setName( initialName );
 						}
 						return null;
 
