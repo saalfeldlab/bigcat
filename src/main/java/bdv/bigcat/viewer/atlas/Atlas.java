@@ -60,6 +60,7 @@ import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.bigcat.viewer.viewer3d.NeuronsFX;
@@ -86,8 +87,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -990,21 +993,46 @@ public class Atlas
 					LOG.debug( "Cannot infer block size from source, using default block size at level {}: .", level, Arrays.toString( blockSizes[ level ] ) );
 				}
 			}
-			try
-			{
-				final ExecutorService es = Executors.newFixedThreadPool( 3 );
-				DefaultBlockCache.generateData( labels, blockSizes, dir, es, 3 * 3 );
-				es.shutdown();
-				final DefaultBlockCache cache = new DefaultBlockCache( dir );
-				state.blocklistCacheProperty().set( cache );
-				LOG.info( "Updated the block list cache -- ready for 3D rendering." );
-			}
-			catch ( IOException | InterruptedException | ExecutionException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+
+			InvokeOnJavaFXApplicationThread.invoke( () -> {
+				final Dialog< Boolean > blockCacheDialog = new Dialog<>();
+				blockCacheDialog.setHeaderText( "Set cache for " + spec.getName() );
+				final TextField tf = new TextField( "/home/hanslovskyp/local/tmp/blockCache/lauritzen" );
+				blockCacheDialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
+				blockCacheDialog.setResultConverter( ButtonType.OK::equals );
+//			Button button = new Button( "Browse" );
+//			button.setOnMouseClicked( event -> n );
+				final HBox contents = new HBox( tf );
+				blockCacheDialog.setGraphic( contents );
+				final Optional< Boolean > result = blockCacheDialog.showAndWait();
+
+				if ( result.isPresent() && result.get() )
+					if ( new File( tf.getText() ).exists() )
+					{
+
+						final DefaultBlockCache cache = new DefaultBlockCache( tf.getText() );
+						state.blocklistCacheProperty().set( cache );
+					}
+					else
+						new Thread( () -> {
+							try
+							{
+								final ExecutorService es = Executors.newFixedThreadPool( 3 );
+								DefaultBlockCache.generateData( labels, blockSizes, dir, es, 3 * 3 );
+								es.shutdown();
+								final DefaultBlockCache cache = new DefaultBlockCache( dir );
+								state.blocklistCacheProperty().set( cache );
+								LOG.info( "Updated the block list cache -- ready for 3D rendering." );
+							}
+							catch ( IOException | InterruptedException | ExecutionException e )
+							{
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						} ).start();
+			} );
 		} ).start();
+
 		final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
 			final Interval interval = key.interval();
 			if ( interval == null )
