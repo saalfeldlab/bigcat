@@ -37,13 +37,13 @@ import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
-import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.source.SourceTabs;
+import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -67,13 +67,13 @@ import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
@@ -82,7 +82,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
@@ -115,7 +114,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
@@ -165,7 +163,7 @@ public class Atlas
 
 	private final AtlasSettings settings = new AtlasSettings();
 
-	private final Node settingsNode = AtlasSettingsNode.getNode( settings );
+	private final Node settingsNode;
 
 	private final VBox sourcesAndSettings;
 
@@ -195,6 +193,7 @@ public class Atlas
 				// this.view.getState().removeSource( source ),
 				this.sourceInfo );
 
+		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
 		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
@@ -313,6 +312,12 @@ public class Atlas
 
 		this.sourceInfo.composites().addListener( ( MapChangeListener< Source< ? >, Composite< ARGBType, ARGBType > > ) change -> baseView().requestRepaint() );
 
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ) );
+
+		this.baseView().getState().zoomSpeedProperty().bind( settings.zoomSpeedProperty() );
+		this.baseView().getState().translationSpeedProperty().bind( settings.translationSpeedProperty() );
+		this.baseView().getState().rotationSpeedProperty().bind( settings.rotationSpeedProperty() );
+
 	}
 
 	public void toggleSourcesTabs()
@@ -327,6 +332,13 @@ public class Atlas
 			this.sourceTabsResizer.remove();
 			this.root.setRight( null );
 		}
+	}
+
+	public Interpolation toggleInterpolation()
+	{
+		final Interpolation interpolation = this.baseView().getState().toggleInterpolation();
+		LOG.debug( "Toggled interpolation to: {}", interpolation );
+		return interpolation;
 	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
@@ -860,11 +872,6 @@ public class Atlas
 		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
 		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
 		return argb;
-	}
-
-	private static Converter< VolatileARGBType, ARGBType > identity()
-	{
-		return ( s, t ) -> t.set( s.get() );
 	}
 
 	public Optional< SelectedIds > getSelectedIds( final Source< ? > source )

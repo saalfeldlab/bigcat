@@ -20,6 +20,8 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
@@ -50,6 +52,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		this.composite.set( composite );
 		this.visible.set( true );
 		this.type.set( type );
+		this.name.set( dataSource.getName() );
 	}
 
 	private final ObjectProperty< DataSource< D, T > > dataSource = new SimpleObjectProperty<>();
@@ -79,6 +82,8 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	private final DoubleProperty selectionMin = new SimpleDoubleProperty( Double.NaN );
 
 	private final DoubleProperty selectionMax = new SimpleDoubleProperty( Double.NaN );
+
+	private final StringProperty name = new SimpleStringProperty();
 
 	private final ObjectProperty< Cache< BlockListKey, long[] > > blockListCache = new SimpleObjectProperty<>( null );
 
@@ -212,6 +217,11 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public ObjectProperty< Cache< BlockListKey, long[] > > blocklistCacheProperty()
 	{
 		return this.blockListCache;
+	}
+
+	public StringProperty nameProperty()
+	{
+		return this.name;
 	}
 
 	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > > > meshesCacheProperty()
