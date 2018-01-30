@@ -53,7 +53,8 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	private void deactivateAll( final boolean notify )
 	{
 		selectedIds.clear();
-		stateChanged();
+		if ( notify )
+			stateChanged();
 	}
 
 	public void deactivate( final long... ids )
