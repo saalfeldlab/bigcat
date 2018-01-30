@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
+import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -311,90 +312,96 @@ public class NeuronFX< T >
 		final TLongHashSet fragments = assignment.getFragments( segmentId.get() );
 		fragments.forEach( id -> {
 			final int scaleIndex = this.scaleIndex.get();
+			final TLongArrayList blockList = new TLongArrayList();
 			try
 			{
-				final long[] blocks = blockListCache.get( new BlockListKey( id, scaleIndex ) );
-				final List< ShapeKey > keys = new ArrayList<>();
-				for ( int i = 0; i < blocks.length; i += 6 )
-				{
-					final long[] min = new long[] { blocks[ i + 0 ], blocks[ i + 1 ], blocks[ i + 2 ] };
-					final long[] max = new long[] { blocks[ i + 3 ], blocks[ i + 4 ], blocks[ i + 5 ] };
-					keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), min, max ) );
-				}
-				final ArrayList< Future< Void > > tasks = new ArrayList<>();
-				synchronized ( this.activeTasks )
-				{
-					for ( final ShapeKey key : keys )
-						tasks.add( es.submit( () -> {
-							try
-							{
-								final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
-								final float[] vertices = verticesAndNormals.getA();
-								final float[] normals = verticesAndNormals.getB();
-								final TriangleMesh mesh = new TriangleMesh();
-								mesh.getPoints().addAll( vertices );
-								mesh.getNormals().addAll( normals );
-								mesh.getTexCoords().addAll( 0, 0 );
-								mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-								final int[] faceIndices = new int[ vertices.length ];
-								for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
-								{
-									faceIndices[ i + 0 ] = k;
-									faceIndices[ i + 1 ] = k;
-									faceIndices[ i + 2 ] = 0;
-								}
-								mesh.getFaces().addAll( faceIndices );
-								final PhongMaterial material = new PhongMaterial();
-								material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
-								material.setSpecularPower( 50 );
-								material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
-								final MeshView mv = new MeshView( mesh );
-								mv.setOpacity( 1.0 );
-								synchronized ( this.isVisible )
-								{
-									mv.visibleProperty().bind( this.isVisible );
-								}
-								mv.setCullFace( CullFace.NONE );
-								mv.setMaterial( material );
-								mv.setDrawMode( DrawMode.FILL );
-								if ( !Thread.interrupted() )
-									synchronized ( meshes )
-									{
-										meshes.put( key, mv );
-									}
-							}
-							catch ( final ExecutionException e )
-							{
-								LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-							}
-							catch ( final RuntimeException e )
-							{
-								LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
-								e.printStackTrace();
-								throw e;
-							}
-							return null;
-
-						} ) );
-					this.activeTasks.addAll( tasks );
-				}
-				for ( final Future< Void > future : tasks )
-					try
-					{
-						future.get();
-					}
-					catch ( final Exception e )
-					{
-						LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
-						e.printStackTrace();
-					}
+				blockList.addAll( blockListCache.get( new BlockListKey( id, scaleIndex ) ) );
 			}
+
 			catch ( final ExecutionException e )
 			{
-				e.printStackTrace();
+				LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
+				return true;
 			}
+
+			final long[] blocks = blockList.toArray();
+			final List< ShapeKey > keys = new ArrayList<>();
+			for ( int i = 0; i < blocks.length; i += 6 )
+			{
+				final long[] min = new long[] { blocks[ i + 0 ], blocks[ i + 1 ], blocks[ i + 2 ] };
+				final long[] max = new long[] { blocks[ i + 3 ], blocks[ i + 4 ], blocks[ i + 5 ] };
+				keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), min, max ) );
+			}
+			final ArrayList< Future< Void > > tasks = new ArrayList<>();
+			synchronized ( this.activeTasks )
+			{
+				for ( final ShapeKey key : keys )
+					tasks.add( es.submit( () -> {
+						try
+						{
+							final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
+							final float[] vertices = verticesAndNormals.getA();
+							final float[] normals = verticesAndNormals.getB();
+							final TriangleMesh mesh = new TriangleMesh();
+							mesh.getPoints().addAll( vertices );
+							mesh.getNormals().addAll( normals );
+							mesh.getTexCoords().addAll( 0, 0 );
+							mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+							final int[] faceIndices = new int[ vertices.length ];
+							for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+							{
+								faceIndices[ i + 0 ] = k;
+								faceIndices[ i + 1 ] = k;
+								faceIndices[ i + 2 ] = 0;
+							}
+							mesh.getFaces().addAll( faceIndices );
+							final PhongMaterial material = new PhongMaterial();
+							material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
+							material.setSpecularPower( 50 );
+							material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
+							final MeshView mv = new MeshView( mesh );
+							mv.setOpacity( 1.0 );
+							synchronized ( this.isVisible )
+							{
+								mv.visibleProperty().bind( this.isVisible );
+							}
+							mv.setCullFace( CullFace.NONE );
+							mv.setMaterial( material );
+							mv.setDrawMode( DrawMode.FILL );
+							if ( !Thread.interrupted() )
+								synchronized ( meshes )
+								{
+									meshes.put( key, mv );
+								}
+						}
+						catch ( final ExecutionException e )
+						{
+							LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+						}
+						catch ( final RuntimeException e )
+						{
+							LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
+							e.printStackTrace();
+							throw e;
+						}
+						return null;
+
+					} ) );
+				this.activeTasks.addAll( tasks );
+			}
+			for ( final Future< Void > future : tasks )
+				try
+				{
+					future.get();
+				}
+				catch ( final Exception e )
+				{
+					LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
+					e.printStackTrace();
+				}
 			return true;
 		} );
+
 	}
 
 	private static final Color fromInt( final int argb )
