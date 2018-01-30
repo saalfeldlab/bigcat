@@ -251,7 +251,7 @@ public class NeuronFX< T >
 		this.colorLookup = colorLookup;
 		this.es = es;
 
-		this.changed.addListener( ( obs, oldv, newv ) -> updateMeshes() );
+		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( this::updateMeshes ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
 		this.segmentIdProperty().addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 		this.colorLookupChanged.bind( colorLookupChanged );
