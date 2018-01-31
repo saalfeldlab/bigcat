@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.util;
+package bdv.bigcat.viewer.util;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -59,7 +59,7 @@ public class HashWrapper< T > implements Serializable
 	{
 		if ( o instanceof HashWrapper )
 		{
-			final Object t = ( ( HashWrapper< ? > ) o ).getData();
+			final Object t = ( (bdv.bigcat.viewer.util.HashWrapper< ? > ) o ).getData();
 			return this.t.getClass().isInstance( t ) && equals.test( this.t, ( T ) t );
 		}
 		return false;

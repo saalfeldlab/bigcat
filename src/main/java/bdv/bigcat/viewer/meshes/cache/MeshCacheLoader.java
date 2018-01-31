@@ -1,11 +1,11 @@
-package bdv.bigcat.viewer.viewer3d.cache;
+package bdv.bigcat.viewer.meshes.cache;
 
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
-import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
+import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.marchingcubes.MarchingCubes;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.converter.Converter;

@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.marchingCubes;
+package bdv.bigcat.viewer.meshes.marchingcubes;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -6,7 +6,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import bdv.bigcat.viewer.util.HashWrapper;
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;

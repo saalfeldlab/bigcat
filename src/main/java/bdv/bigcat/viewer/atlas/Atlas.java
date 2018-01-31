@@ -50,6 +50,9 @@ import bdv.bigcat.viewer.atlas.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.meshes.MeshManager;
+import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
@@ -60,12 +63,9 @@ import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
-import bdv.bigcat.viewer.viewer3d.NeuronsFX;
+import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.bigcat.viewer.viewer3d.cache.CacheUtils;
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -490,7 +490,7 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
-		new NeuronsFX( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
+		new MeshManager( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{
@@ -581,7 +581,7 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
-		new NeuronsFX( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
+		new MeshManager( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{

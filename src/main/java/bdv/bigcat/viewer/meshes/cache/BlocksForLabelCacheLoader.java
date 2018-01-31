@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.cache;
+package bdv.bigcat.viewer.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import bdv.bigcat.viewer.util.HashWrapper;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Point;

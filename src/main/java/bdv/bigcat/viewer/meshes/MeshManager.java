@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d;
+package bdv.bigcat.viewer.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -14,10 +14,10 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -31,7 +31,7 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class NeuronsFX
+public class MeshManager
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -40,7 +40,7 @@ public class NeuronsFX
 
 	private final AtlasSourceState< ?, ? > state;
 
-	private final List< NeuronFX< DataSource< ?, ? > > > neurons = Collections.synchronizedList( new ArrayList<>() );
+	private final List< MeshGenerator< DataSource< ?, ? > > > neurons = Collections.synchronizedList( new ArrayList<>() );
 
 	private final Group root;
 
@@ -48,7 +48,7 @@ public class NeuronsFX
 
 	private final ExecutorService es;
 
-	public NeuronsFX(
+	public MeshManager(
 			final DataSource< ?, ? > source,
 			final AtlasSourceState< ?, ? > state,
 			final Group root,
@@ -72,8 +72,8 @@ public class NeuronsFX
 		{
 			final TLongHashSet selectedSegments = new TLongHashSet( this.selectedSegments.getSelectedSegments() );
 			final TLongHashSet currentlyShowing = new TLongHashSet();
-			neurons.stream().mapToLong( NeuronFX::getSegmentId ).forEach( currentlyShowing::add );
-			final List< NeuronFX< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !selectedSegments.contains( n.getSegmentId() ) ).collect( Collectors.toList() );
+			neurons.stream().mapToLong( MeshGenerator::getSegmentId ).forEach( currentlyShowing::add );
+			final List< MeshGenerator< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !selectedSegments.contains( n.getSegmentId() ) ).collect( Collectors.toList() );
 			toBeRemoved.forEach( this::removeNeuron );
 			neurons.removeAll( toBeRemoved );
 			Arrays.stream( selectedSegments.toArray() ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> addNeuronAt( source, segment ) );
@@ -101,12 +101,12 @@ public class NeuronsFX
 		if ( meshCache == null || blockListCache == null )
 			return;
 
-		for ( final NeuronFX< DataSource< ?, ? > > neuron : neurons )
+		for ( final MeshGenerator< DataSource< ?, ? > > neuron : neurons )
 			if ( neuron.getSource() == source && neuron.getSegmentId() == segment )
 				return;
 
 		LOG.debug( "Adding mesh for segment {}.", segment );
-		final NeuronFX< DataSource< ?, ? > > nfx = new NeuronFX<>(
+		final MeshGenerator< DataSource< ?, ? > > nfx = new MeshGenerator<>(
 				segment,
 				source,
 				assignment,
@@ -121,7 +121,7 @@ public class NeuronsFX
 
 	}
 
-	public void removeNeuron( final NeuronFX< DataSource< ?, ? > > neuron )
+	public void removeNeuron( final MeshGenerator< DataSource< ?, ? > > neuron )
 	{
 		neuron.rootProperty().set( null );
 	}

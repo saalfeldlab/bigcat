@@ -1,10 +1,10 @@
-package bdv.bigcat.viewer.viewer3d.cache;
+package bdv.bigcat.viewer.meshes.cache;
 
 import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
 
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import bdv.bigcat.viewer.util.HashWrapper;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.Point;

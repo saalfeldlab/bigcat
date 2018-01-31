@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.cache;
+package bdv.bigcat.viewer.meshes.cache;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,8 +12,8 @@ import java.util.function.LongFunction;
 import java.util.stream.IntStream;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.util.HashWrapper;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;

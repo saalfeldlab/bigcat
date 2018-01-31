@@ -23,7 +23,7 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
+import bdv.bigcat.viewer.meshes.MeshGenerator.BlockListKey;
 import bdv.labels.labelset.Label;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.list.array.TLongArrayList;

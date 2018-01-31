@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d;
+package bdv.bigcat.viewer.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -55,7 +55,7 @@ import net.imglib2.util.Pair;
  *
  * @param <T>
  */
-public class NeuronFX< T >
+public class MeshGenerator< T >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -238,7 +238,7 @@ public class NeuronFX< T >
 	private final List< Future< ? > > activeTasks = new ArrayList<>();
 
 	//
-	public NeuronFX(
+	public MeshGenerator(
 			final long segmentId,
 			final T source,
 			final FragmentSegmentAssignment assignment,
