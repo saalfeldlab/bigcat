@@ -50,13 +50,14 @@ import bdv.bigcat.viewer.atlas.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.SelectedSegments;
@@ -490,7 +491,10 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
+		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
+		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{
@@ -581,7 +585,10 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), new SelectedSegments( selId, assignment ), this.generalPurposeExecutorService );
+		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
+		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{

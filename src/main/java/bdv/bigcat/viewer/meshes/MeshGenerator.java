@@ -4,30 +4,25 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.LongToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
@@ -35,7 +30,6 @@ import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -205,11 +199,9 @@ public class MeshGenerator< T >
 
 	}
 
-	private final LongProperty segmentId;
+	private final long id;
 
 	private final T source;
-
-	private final FragmentSegmentAssignment assignment;
 
 	private final Cache< Long, Interval[] >[] blockListCache;
 
@@ -225,13 +217,11 @@ public class MeshGenerator< T >
 
 	private final BooleanProperty changed = new SimpleBooleanProperty( false );
 
-	private final BooleanProperty colorLookupChanged = new SimpleBooleanProperty( false );
+	private final ObservableValue< Color > color;
 
 	private final ObjectProperty< Group > root = new SimpleObjectProperty<>();
 
 	private final BooleanProperty isReady = new SimpleBooleanProperty( true );
-
-	private final LongToIntFunction colorLookup;
 
 	private final ExecutorService es;
 
@@ -241,26 +231,21 @@ public class MeshGenerator< T >
 	public MeshGenerator(
 			final long segmentId,
 			final T source,
-			final FragmentSegmentAssignment assignment,
 			final Cache< Long, Interval[] >[] blockListCache,
 			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
-			final ObservableBooleanValue colorLookupChanged,
-			final LongToIntFunction colorLookup,
+			final ObservableIntegerValue color,
 			final ExecutorService es )
 	{
 		super();
-		this.segmentId = new SimpleLongProperty( segmentId );
+		this.id = segmentId;
 		this.source = source;
-		this.assignment = assignment;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
-		this.colorLookup = colorLookup;
+		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
 		this.es = es;
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
-		this.segmentIdProperty().addListener( ( obs, oldv, newv ) -> changed.set( true ) );
-		this.colorLookupChanged.bind( colorLookupChanged );
 		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, meshSimplificationIteratoins );
 
 		scaleOrSimplificationChanged.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
@@ -290,22 +275,6 @@ public class MeshGenerator< T >
 					} );
 			} );
 		} );
-
-		this.colorLookupChanged.addListener( ( obs, oldv, newv ) -> {
-			synchronized ( meshes )
-			{
-				if ( newv )
-					for ( final Entry< ShapeKey, MeshView > mesh : meshes.entrySet() )
-					{
-						final Material material = mesh.getValue().getMaterial();
-						if ( material instanceof PhongMaterial )
-						{
-							final PhongMaterial pm = ( PhongMaterial ) material;
-							InvokeOnJavaFXApplicationThread.invoke( () -> pm.setDiffuseColor( fromInt( colorLookup.applyAsInt( mesh.getKey().shapeId() ) ) ) );
-						}
-					}
-			}
-		} );
 		this.changed.set( true );
 
 	}
@@ -325,100 +294,97 @@ public class MeshGenerator< T >
 			this.activeTasks.forEach( f -> f.cancel( true ) );
 			this.activeTasks.clear();
 		}
-		final TLongHashSet fragments = assignment.getFragments( segmentId.get() );
-		fragments.forEach( id -> {
-			final int scaleIndex = this.scaleIndex.get();
-			final List< Interval > blockList = new ArrayList<>();
+
+		final int scaleIndex = this.scaleIndex.get();
+		final List< Interval > blockList = new ArrayList<>();
+		try
+		{
+			blockList.addAll( Arrays.asList( blockListCache[ 0 ].get( id ) ) );
+		}
+
+		catch ( final ExecutionException e )
+		{
+			LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
+			return;
+		}
+
+		final List< ShapeKey > keys = new ArrayList<>();
+		for ( final Interval block : blockList )
+			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+		final ArrayList< Future< Void > > tasks = new ArrayList<>();
+		synchronized ( this.activeTasks )
+		{
+			for ( final ShapeKey key : keys )
+				tasks.add( es.submit( () -> {
+					final String initialName = Thread.currentThread().getName();
+					try
+					{
+						Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
+						LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
+						final Pair< float[], float[] > verticesAndNormals = meshCache[ 0 ].get( key );
+						final float[] vertices = verticesAndNormals.getA();
+						final float[] normals = verticesAndNormals.getB();
+						final TriangleMesh mesh = new TriangleMesh();
+						mesh.getPoints().addAll( vertices );
+						mesh.getNormals().addAll( normals );
+						mesh.getTexCoords().addAll( 0, 0 );
+						mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+						final int[] faceIndices = new int[ vertices.length ];
+						for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+						{
+							faceIndices[ i + 0 ] = k;
+							faceIndices[ i + 1 ] = k;
+							faceIndices[ i + 2 ] = 0;
+						}
+						mesh.getFaces().addAll( faceIndices );
+						final PhongMaterial material = new PhongMaterial();
+						material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
+						material.setSpecularPower( 50 );
+						material.diffuseColorProperty().bind( color );
+						final MeshView mv = new MeshView( mesh );
+						mv.setOpacity( 1.0 );
+						synchronized ( this.isVisible )
+						{
+							mv.visibleProperty().bind( this.isVisible );
+						}
+						mv.setCullFace( CullFace.NONE );
+						mv.setMaterial( material );
+						mv.setDrawMode( DrawMode.FILL );
+						if ( !Thread.interrupted() )
+							synchronized ( meshes )
+							{
+								meshes.put( key, mv );
+							}
+					}
+					catch ( final ExecutionException e )
+					{
+						LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+					}
+					catch ( final RuntimeException e )
+					{
+						LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
+						e.printStackTrace();
+						throw e;
+					}
+					finally
+					{
+						Thread.currentThread().setName( initialName );
+					}
+					return null;
+
+				} ) );
+			this.activeTasks.addAll( tasks );
+		}
+		for ( final Future< Void > future : tasks )
 			try
 			{
-				blockList.addAll( Arrays.asList( blockListCache[ 0 ].get( id ) ) );
+				future.get();
 			}
-
-			catch ( final ExecutionException e )
+			catch ( final Exception e )
 			{
-				LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
-				return true;
+				LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
+				e.printStackTrace();
 			}
-
-			final List< ShapeKey > keys = new ArrayList<>();
-			for ( final Interval block : blockList )
-				keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
-			final ArrayList< Future< Void > > tasks = new ArrayList<>();
-			synchronized ( this.activeTasks )
-			{
-				for ( final ShapeKey key : keys )
-					tasks.add( es.submit( () -> {
-						final String initialName = Thread.currentThread().getName();
-						try
-						{
-							Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
-							LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-							final Pair< float[], float[] > verticesAndNormals = meshCache[ 0 ].get( key );
-							final float[] vertices = verticesAndNormals.getA();
-							final float[] normals = verticesAndNormals.getB();
-							final TriangleMesh mesh = new TriangleMesh();
-							mesh.getPoints().addAll( vertices );
-							mesh.getNormals().addAll( normals );
-							mesh.getTexCoords().addAll( 0, 0 );
-							mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-							final int[] faceIndices = new int[ vertices.length ];
-							for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
-							{
-								faceIndices[ i + 0 ] = k;
-								faceIndices[ i + 1 ] = k;
-								faceIndices[ i + 2 ] = 0;
-							}
-							mesh.getFaces().addAll( faceIndices );
-							final PhongMaterial material = new PhongMaterial();
-							material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
-							material.setSpecularPower( 50 );
-							material.setDiffuseColor( fromInt( colorLookup.applyAsInt( id ) ) );
-							final MeshView mv = new MeshView( mesh );
-							mv.setOpacity( 1.0 );
-							synchronized ( this.isVisible )
-							{
-								mv.visibleProperty().bind( this.isVisible );
-							}
-							mv.setCullFace( CullFace.NONE );
-							mv.setMaterial( material );
-							mv.setDrawMode( DrawMode.FILL );
-							if ( !Thread.interrupted() )
-								synchronized ( meshes )
-								{
-									meshes.put( key, mv );
-								}
-						}
-						catch ( final ExecutionException e )
-						{
-							LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-						}
-						catch ( final RuntimeException e )
-						{
-							LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
-							e.printStackTrace();
-							throw e;
-						}
-						finally
-						{
-							Thread.currentThread().setName( initialName );
-						}
-						return null;
-
-					} ) );
-				this.activeTasks.addAll( tasks );
-			}
-			for ( final Future< Void > future : tasks )
-				try
-				{
-					future.get();
-				}
-				catch ( final Exception e )
-				{
-					LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
-					e.printStackTrace();
-				}
-			return true;
-		} );
 
 	}
 
@@ -432,24 +398,14 @@ public class MeshGenerator< T >
 		return source;
 	}
 
-	public long getSegmentId()
+	public long getId()
 	{
-		return segmentId.get();
-	}
-
-	public LongProperty segmentIdProperty()
-	{
-		return this.segmentId;
+		return id;
 	}
 
 	public ObjectProperty< Group > rootProperty()
 	{
 		return this.root;
-	}
-
-	public void redraw()
-	{
-		this.changed.set( true );
 	}
 
 	public Runnable synchronize( final Runnable r, final Object syncObject )

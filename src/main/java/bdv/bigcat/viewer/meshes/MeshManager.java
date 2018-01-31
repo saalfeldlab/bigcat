@@ -16,11 +16,11 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
-import bdv.bigcat.viewer.state.SelectedSegments;
+import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -44,7 +44,7 @@ public class MeshManager
 
 	private final Group root;
 
-	private final SelectedSegments< ? > selectedSegments;
+	private final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments;
 
 	private final ExecutorService es;
 
@@ -52,17 +52,17 @@ public class MeshManager
 			final DataSource< ?, ? > source,
 			final AtlasSourceState< ?, ? > state,
 			final Group root,
-			final SelectedSegments< ? > selectedSegments,
+			final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments,
 			final ExecutorService es )
 	{
 		super();
 		this.source = source;
 		this.state = state;
 		this.root = root;
-		this.selectedSegments = selectedSegments;
+		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
 		this.es = es;
 
-		this.selectedSegments.addListener( this::update );
+		this.fragmentsInSelectedSegments.addListener( this::update );
 
 	}
 
@@ -70,17 +70,17 @@ public class MeshManager
 	{
 		synchronized ( neurons )
 		{
-			final TLongHashSet selectedSegments = new TLongHashSet( this.selectedSegments.getSelectedSegments() );
+			final TLongHashSet fragmentsInSelectedSegments = new TLongHashSet( this.fragmentsInSelectedSegments.getFragments() );
 			final TLongHashSet currentlyShowing = new TLongHashSet();
-			neurons.stream().mapToLong( MeshGenerator::getSegmentId ).forEach( currentlyShowing::add );
-			final List< MeshGenerator< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !selectedSegments.contains( n.getSegmentId() ) ).collect( Collectors.toList() );
+			neurons.stream().mapToLong( MeshGenerator::getId ).forEach( currentlyShowing::add );
+			final List< MeshGenerator< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !fragmentsInSelectedSegments.contains( n.getId() ) ).collect( Collectors.toList() );
 			toBeRemoved.forEach( this::removeNeuron );
 			neurons.removeAll( toBeRemoved );
-			Arrays.stream( selectedSegments.toArray() ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> addNeuronAt( source, segment ) );
+			Arrays.stream( fragmentsInSelectedSegments.toArray() ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> generateMesh( source, segment ) );
 		}
 	}
 
-	private void addNeuronAt( final DataSource< ?, ? > source, final long segment )
+	private void generateMesh( final DataSource< ?, ? > source, final long id )
 	{
 
 		final FragmentSegmentAssignmentState< ? > assignment = state.assignmentProperty().get();
@@ -92,9 +92,9 @@ public class MeshManager
 			return;
 
 		final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) streams;
-		final BooleanProperty colorLookupChanged = new SimpleBooleanProperty( false );
-		stream.addListener( () -> colorLookupChanged.set( true ) );
-		colorLookupChanged.addListener( ( obs, oldv, newv ) -> colorLookupChanged.set( false ) );
+		final IntegerProperty color = new SimpleIntegerProperty( stream.argb( id ) );
+		stream.addListener( () -> color.set( stream.argb( id ) ) );
+		assignment.addListener( () -> color.set( stream.argb( id ) ) );
 
 		final Cache< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
 		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
@@ -102,18 +102,16 @@ public class MeshManager
 			return;
 
 		for ( final MeshGenerator< DataSource< ?, ? > > neuron : neurons )
-			if ( neuron.getSource() == source && neuron.getSegmentId() == segment )
+			if ( neuron.getSource() == source && neuron.getId() == id )
 				return;
 
-		LOG.debug( "Adding mesh for segment {}.", segment );
+		LOG.debug( "Adding mesh for segment {}.", id );
 		final MeshGenerator< DataSource< ?, ? > > nfx = new MeshGenerator<>(
-				segment,
+				id,
 				source,
-				assignment,
 				blockListCache,
 				meshCache,
-				colorLookupChanged,
-				stream::argb,
+				color,
 				es );
 		nfx.rootProperty().set( this.root );
 
@@ -121,9 +119,9 @@ public class MeshManager
 
 	}
 
-	public void removeNeuron( final MeshGenerator< DataSource< ?, ? > > neuron )
+	public void removeNeuron( final MeshGenerator< DataSource< ?, ? > > mesh )
 	{
-		neuron.rootProperty().set( null );
+		mesh.rootProperty().set( null );
 	}
 
 }
