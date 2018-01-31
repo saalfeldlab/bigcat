@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.function.BiPredicate;
 import java.util.function.ToIntFunction;
 
+import net.imglib2.Interval;
+import net.imglib2.util.Intervals;
+
 public class HashWrapper< T > implements Serializable
 {
 
@@ -84,9 +87,18 @@ public class HashWrapper< T > implements Serializable
 
 	}
 
-	public static HashWrapper< long[] > longArray( final long[] array )
+	public static HashWrapper< long[] > longArray( final long... array )
 	{
-		return new HashWrapper< >( array, new LongArrayHash(), new LongArrayEquals() );
+		return new HashWrapper<>( array, new LongArrayHash(), new LongArrayEquals() );
+	}
+
+	public static HashWrapper< Interval > interval( final Interval interval )
+	{
+		final LongArrayHash hash = new LongArrayHash();
+		return new HashWrapper<>(
+				interval,
+				i -> 31 * hash.applyAsInt( Intervals.minAsLongArray( i ) ) + hash.applyAsInt( Intervals.maxAsLongArray( i ) ),
+				( i1, i2 ) -> Intervals.contains( i1, i2 ) && Intervals.contains( i2, i1 ) );
 	}
 
 }
