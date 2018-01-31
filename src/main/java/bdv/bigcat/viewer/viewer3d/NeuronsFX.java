@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,12 +70,13 @@ public class NeuronsFX
 	{
 		synchronized ( neurons )
 		{
-			// TODO when there's many neurons, maybe don't remove those that are
-			// active.
 			final TLongHashSet selectedSegments = new TLongHashSet( this.selectedSegments.getSelectedSegments() );
-			neurons.forEach( this::removeNeuron );
-			neurons.clear();
-			Arrays.stream( selectedSegments.toArray() ).forEach( segment -> addNeuronAt( source, segment ) );
+			final TLongHashSet currentlyShowing = new TLongHashSet();
+			neurons.stream().mapToLong( NeuronFX::getSegmentId ).forEach( currentlyShowing::add );
+			final List< NeuronFX< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !selectedSegments.contains( n.getSegmentId() ) ).collect( Collectors.toList() );
+			toBeRemoved.forEach( this::removeNeuron );
+			neurons.removeAll( toBeRemoved );
+			Arrays.stream( selectedSegments.toArray() ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> addNeuronAt( source, segment ) );
 		}
 	}
 
