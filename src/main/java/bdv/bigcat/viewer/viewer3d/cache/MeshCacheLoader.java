@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
-import bdv.bigcat.viewer.viewer3d.NeuronFX;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import net.imglib2.RandomAccessibleInterval;
@@ -25,7 +24,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 
 	private final RandomAccessibleInterval< T > data;
 
-	private final Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh;
+	private Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh;
 
 	private final LongFunction< Converter< T, BoolType > > getMaskGenerator;
 
@@ -34,16 +33,20 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 	public MeshCacheLoader(
 			final int[] cubeSize,
 			final RandomAccessibleInterval< T > data,
-			final Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh,
 			final LongFunction< Converter< T, BoolType > > getMaskGenerator,
 			final AffineTransform3D transform )
 	{
 		super();
 		this.cubeSize = cubeSize;
 		this.data = data;
-		this.getHigherResMesh = getHigherResMesh;
+		this.getHigherResMesh = key -> new ValuePair<>( new float[ 0 ], new float[ 0 ] );
 		this.getMaskGenerator = getMaskGenerator;
 		this.transform = transform;
+	}
+
+	public void setGetHigherResMesh( final Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh )
+	{
+		this.getHigherResMesh = getHigherResMesh;
 	}
 
 	@Override

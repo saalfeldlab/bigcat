@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.viewer3d.cache;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -11,6 +12,9 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import net.imglib2.FinalInterval;
@@ -26,6 +30,8 @@ import net.imglib2.util.Intervals;
 
 public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final CellGrid grid;
 
@@ -63,6 +69,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				.flatMap( List::stream )
 				.map( HashWrapper::interval )
 				.forEach( blocks::add );
+		LOG.debug( "Got {} block candidates.", blocks.size() );
 
 		final List< Future< Interval > > futures = new ArrayList<>();
 		blocks.forEach( block -> {
@@ -82,6 +89,8 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			final Interval result = futures.get( i ).get();
 			Optional.ofNullable( result ).ifPresent( results::add );
 		}
+
+		LOG.debug( "Found a total of {} blocks", results.size() );
 
 		return results.toArray( new Interval[ results.size() ] );
 	}
@@ -169,6 +178,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 		System.out.println( toString( blocksForLabelLoader1.get( 3l ) ) );
 		System.out.println( toString( blocksForLabelLoader1.get( 4l ) ) );
 		System.out.println( toString( blocksForLabelLoader1.get( 5l ) ) );
+		es.shutdown();
 
 	}
 

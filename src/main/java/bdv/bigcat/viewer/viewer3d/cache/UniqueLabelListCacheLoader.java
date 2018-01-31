@@ -84,7 +84,9 @@ public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper
 		System.out.println( Arrays.toString( uniqueLabelsLoader1.get( HashWrapper.longArray( 2 ) ) ) );
 		System.out.println( Arrays.toString( uniqueLabelsLoader1.get( HashWrapper.longArray( 3 ) ) ) );
 		System.out.println( Arrays.toString( uniqueLabelsLoader2.get( HashWrapper.longArray( 0 ) ) ) );
-		System.out.println( Arrays.toString( uniqueLabelsLoader2.get( HashWrapper.longArray( 2 ) ) ) );
+		System.out.println( Arrays.toString( uniqueLabelsLoader2.get( HashWrapper.longArray( 1 ) ) ) );
+		// will throw IllegalArgumentException:
+//		System.out.println( Arrays.toString( uniqueLabelsLoader2.get( HashWrapper.longArray( 2 ) ) ) );
 
 	}
 

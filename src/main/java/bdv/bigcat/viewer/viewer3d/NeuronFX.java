@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -31,8 +30,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
@@ -45,6 +46,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 
 /**
@@ -107,7 +109,11 @@ public class NeuronFX< T >
 			if ( other instanceof ShapeKey )
 			{
 				final ShapeKey otherShapeKey = ( ShapeKey ) other;
-				return shapeId == otherShapeKey.shapeId && otherShapeKey.scaleIndex == scaleIndex;
+				return shapeId == otherShapeKey.shapeId &&
+						otherShapeKey.scaleIndex == scaleIndex &&
+						otherShapeKey.meshSimplificationIterations == this.meshSimplificationIterations &&
+						Arrays.equals( otherShapeKey.min, min ) &&
+						Arrays.equals( otherShapeKey.max, max );
 			}
 			return false;
 		}
@@ -205,9 +211,9 @@ public class NeuronFX< T >
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final Cache< BlockListKey, long[] > blockListCache;
+	private final Cache< Long, Interval[] >[] blockListCache;
 
-	private final Cache< ShapeKey, Pair< float[], float[] > > meshCache;
+	private final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
@@ -236,8 +242,8 @@ public class NeuronFX< T >
 			final long segmentId,
 			final T source,
 			final FragmentSegmentAssignment assignment,
-			final Cache< BlockListKey, long[] > blockListCache,
-			final Cache< ShapeKey, Pair< float[], float[] > > meshCache,
+			final Cache< Long, Interval[] >[] blockListCache,
+			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableBooleanValue colorLookupChanged,
 			final LongToIntFunction colorLookup,
 			final ExecutorService es )
@@ -251,7 +257,7 @@ public class NeuronFX< T >
 		this.colorLookup = colorLookup;
 		this.es = es;
 
-		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( this::updateMeshes ).start() );
+		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
 		this.segmentIdProperty().addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 		this.colorLookupChanged.bind( colorLookupChanged );
@@ -272,9 +278,16 @@ public class NeuronFX< T >
 		this.meshes.addListener( ( MapChangeListener< ShapeKey, MeshView > ) change -> {
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
 				if ( change.wasRemoved() )
-					InvokeOnJavaFXApplicationThread.invoke( () -> group.getChildren().remove( change.getValueRemoved() ) );
-				else if ( change.wasAdded() )
-					InvokeOnJavaFXApplicationThread.invoke( () -> group.getChildren().add( change.getValueAdded() ) );
+					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> group.getChildren().remove( change.getValueRemoved() ), group ) );
+				else if ( change.wasAdded() && !group.getChildren().contains( change.getValueAdded() ) )
+					InvokeOnJavaFXApplicationThread.invoke( () -> {
+						synchronized ( group )
+						{
+							final ObservableList< Node > children = group.getChildren();
+							if ( !children.contains( change.getValueAdded() ) )
+								children.add( change.getValueAdded() );
+						}
+					} );
 			} );
 		} );
 
@@ -297,8 +310,11 @@ public class NeuronFX< T >
 
 	}
 
-	private void updateMeshes()
+	private void updateMeshes( final boolean doUpdate )
 	{
+		LOG.debug( "Updating mesh? {}", doUpdate );
+		if ( !doUpdate )
+			return;
 		synchronized ( meshes )
 		{
 			this.meshes.clear();
@@ -312,10 +328,10 @@ public class NeuronFX< T >
 		final TLongHashSet fragments = assignment.getFragments( segmentId.get() );
 		fragments.forEach( id -> {
 			final int scaleIndex = this.scaleIndex.get();
-			final TLongArrayList blockList = new TLongArrayList();
+			final List< Interval > blockList = new ArrayList<>();
 			try
 			{
-				blockList.addAll( blockListCache.get( new BlockListKey( id, scaleIndex ) ) );
+				blockList.addAll( Arrays.asList( blockListCache[ 0 ].get( id ) ) );
 			}
 
 			catch ( final ExecutionException e )
@@ -324,14 +340,9 @@ public class NeuronFX< T >
 				return true;
 			}
 
-			final long[] blocks = blockList.toArray();
 			final List< ShapeKey > keys = new ArrayList<>();
-			for ( int i = 0; i < blocks.length; i += 6 )
-			{
-				final long[] min = new long[] { blocks[ i + 0 ], blocks[ i + 1 ], blocks[ i + 2 ] };
-				final long[] max = new long[] { blocks[ i + 3 ], blocks[ i + 4 ], blocks[ i + 5 ] };
-				keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), min, max ) );
-			}
+			for ( final Interval block : blockList )
+				keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 			final ArrayList< Future< Void > > tasks = new ArrayList<>();
 			synchronized ( this.activeTasks )
 			{
@@ -342,7 +353,7 @@ public class NeuronFX< T >
 						{
 							Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
 							LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-							final Pair< float[], float[] > verticesAndNormals = meshCache.get( key );
+							final Pair< float[], float[] > verticesAndNormals = meshCache[ 0 ].get( key );
 							final float[] vertices = verticesAndNormals.getA();
 							final float[] normals = verticesAndNormals.getB();
 							final TriangleMesh mesh = new TriangleMesh();
@@ -439,6 +450,16 @@ public class NeuronFX< T >
 	public void redraw()
 	{
 		this.changed.set( true );
+	}
+
+	public Runnable synchronize( final Runnable r, final Object syncObject )
+	{
+		return () -> {
+			synchronized ( syncObject )
+			{
+				r.run();
+			}
+		};
 	}
 
 }

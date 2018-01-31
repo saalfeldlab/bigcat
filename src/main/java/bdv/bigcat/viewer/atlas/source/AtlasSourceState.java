@@ -9,7 +9,6 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.util.IdService;
 import bdv.viewer.SourceAndConverter;
@@ -23,6 +22,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.scene.paint.Color;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
 import net.imglib2.converter.Converter;
@@ -85,9 +85,9 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final StringProperty name = new SimpleStringProperty();
 
-	private final ObjectProperty< Cache< BlockListKey, long[] > > blockListCache = new SimpleObjectProperty<>( null );
+	private final ObjectProperty< Cache< Long, Interval[] >[] > blockListCache = new SimpleObjectProperty<>( null );
 
-	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > > > meshesCache = new SimpleObjectProperty<>( null );
+	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCache = new SimpleObjectProperty<>( null );
 
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
@@ -214,7 +214,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.selectionMax;
 	}
 
-	public ObjectProperty< Cache< BlockListKey, long[] > > blocklistCacheProperty()
+	public ObjectProperty< Cache< Long, Interval[] >[] > blocklistCacheProperty()
 	{
 		return this.blockListCache;
 	}
@@ -224,7 +224,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.name;
 	}
 
-	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > > > meshesCacheProperty()
+	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
 	{
 		return this.meshesCache;
 	}

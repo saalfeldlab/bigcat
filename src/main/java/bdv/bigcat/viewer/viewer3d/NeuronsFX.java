@@ -16,12 +16,12 @@ import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Group;
+import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.util.Pair;
 
@@ -94,8 +94,8 @@ public class NeuronsFX
 		stream.addListener( () -> colorLookupChanged.set( true ) );
 		colorLookupChanged.addListener( ( obs, oldv, newv ) -> colorLookupChanged.set( false ) );
 
-		final Cache< BlockListKey, long[] > blockListCache = state.blocklistCacheProperty().get();
-		final Cache< ShapeKey, Pair< float[], float[] > > meshCache = state.meshesCacheProperty().get();
+		final Cache< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
+		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
 		if ( meshCache == null || blockListCache == null )
 			return;
 

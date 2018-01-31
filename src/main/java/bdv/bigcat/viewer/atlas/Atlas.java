@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,13 +9,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -60,13 +60,12 @@ import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.bigcat.viewer.viewer3d.NeuronFX.BlockListKey;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import bdv.bigcat.viewer.viewer3d.NeuronsFX;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
+import bdv.bigcat.viewer.viewer3d.cache.CacheUtils;
+import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -76,6 +75,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -87,10 +87,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -106,16 +104,14 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
+import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
-import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
-import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -125,8 +121,6 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
-import net.imglib2.view.Views;
 
 public class Atlas
 {
@@ -462,8 +456,8 @@ public class Atlas
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final IdService idService,
-			final Cache< BlockListKey, long[] > blocksThatContainId,
-			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
+			final Cache< Long, Interval[] >[] blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
@@ -537,7 +531,14 @@ public class Atlas
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
 		else
-			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
+			generateMeshCaches(
+					spec,
+					state,
+					new double[][] { { 1, 1, 1 } },
+					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
+					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
+					generalPurposeExecutorService );
+//			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
 
 	}
 
@@ -549,8 +550,8 @@ public class Atlas
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final ToLongFunction< V > toLong,
 			final IdService idService,
-			final Cache< BlockListKey, long[] > blocksThatContainId,
-			final Cache< ShapeKey, Pair< float[], float[] > > meshCache )
+			final Cache< Long, Interval[] >[] blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
@@ -621,7 +622,21 @@ public class Atlas
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
 		else
-			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
+			generateMeshCaches(
+					spec,
+					state,
+					new double[][] { { 1, 1, 1 } },
+					( lbl, set ) -> set.add( lbl.getIntegerLong() ),
+					lbl -> ( src, tgt ) -> tgt.set( src.getIntegerLong() == lbl ),
+					generalPurposeExecutorService );
+
+//		private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+//			final DataSource< D, T > spec,
+//			final AtlasSourceState< T, D > state,
+//			final double[][] scalingFactors,
+//			final BiConsumer< D, TLongHashSet > collectLabels,
+//			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+//			final ExecutorService es )
 
 	}
 
@@ -971,117 +986,28 @@ public class Atlas
 	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
 			final DataSource< D, T > spec,
 			final AtlasSourceState< T, D > state,
-			final String dir )
+			final double[][] scalingFactors,
+			final BiConsumer< D, TLongHashSet > collectLabels,
+			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+			final ExecutorService es )
 	{
-		// TODO make user prompt for this (block size, directory etc)
-		new Thread( () -> {
-			LOG.info( "Populating block list cache -- 3D rendering will be available once finished." );
-			final List< RandomAccessibleInterval< UnsignedLongType > > labels = IntStream.range( 0, spec.getNumMipmapLevels() ).mapToObj( l -> state.getUnsignedLongSource( 0, l ) ).collect( Collectors.toList() );
-			final int[][] blockSizes = new int[ labels.size() ][];
-			for ( int level = 0; level < labels.size(); ++level )
-			{
-				final RandomAccessibleInterval< D > data = spec.getDataSource( 0, level );
-				LOG.debug( "Source type: {}", data.getClass() );
-				if ( data instanceof AbstractCellImg< ?, ?, ?, ? > )
-				{
-					blockSizes[ level ] = IntStream.range( 0, data.numDimensions() ).map( d -> ( ( AbstractCellImg< ?, ?, ?, ? > ) data ).getCellGrid().cellDimension( d ) ).toArray();
-					LOG.debug( "Source at level {} is abstract cell img, inferring block size from source: {}.", level, Arrays.toString( blockSizes[ level ] ) );
-				}
-				else
-				{
-					blockSizes[ level ] = IntStream.generate( () -> 64 ).limit( data.numDimensions() ).toArray();
-					LOG.debug( "Cannot infer block size from source, using default block size at level {}: .", level, Arrays.toString( blockSizes[ level ] ) );
-				}
-			}
 
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				final Dialog< Boolean > blockCacheDialog = new Dialog<>();
-				blockCacheDialog.setHeaderText( "Set cache for " + spec.getName() );
-				final TextField tf = new TextField( "/home/hanslovskyp/local/tmp/blockCache/lauritzen" );
-				blockCacheDialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
-				blockCacheDialog.setResultConverter( ButtonType.OK::equals );
-//			Button button = new Button( "Browse" );
-//			button.setOnMouseClicked( event -> n );
-				final HBox contents = new HBox( tf );
-				blockCacheDialog.setGraphic( contents );
-				final Optional< Boolean > result = blockCacheDialog.showAndWait();
+		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+		final int[][] cubeSizes = Stream.generate( () -> new int[] { 10, 10, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+		final CacheLoader< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelLoaders( spec, blockSizes, collectLabels );
+		final CacheLoader< Long, Interval[] >[] blocksForLabelLoaders = CacheUtils.blocksForLabelLoaders( spec, uniqueLabelLoaders, blockSizes, scalingFactors, es );
+		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+				spec,
+				cubeSizes,
+				getMaskGenerator,
+				l -> new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( l ) );
+		@SuppressWarnings( "unchecked" )
+		final Cache< Long, Interval[] >[] blocksForLabelCache = new Cache[ blocksForLabelLoaders.length ];
+		for ( int d = 0; d < blocksForLabelCache.length; ++d )
+			blocksForLabelCache[ d ] = new SoftRefLoaderCache< Long, Interval[] >().withLoader( blocksForLabelLoaders[ d ] );
 
-				if ( result.isPresent() && result.get() )
-					if ( new File( tf.getText() ).exists() )
-					{
-
-						final DefaultBlockCache cache = new DefaultBlockCache( tf.getText() );
-						state.blocklistCacheProperty().set( cache );
-					}
-					else
-						new Thread( () -> {
-							try
-							{
-								final ExecutorService es = Executors.newFixedThreadPool( 3 );
-								DefaultBlockCache.generateData( labels, blockSizes, dir, es, 3 * 3 );
-								es.shutdown();
-								final DefaultBlockCache cache = new DefaultBlockCache( dir );
-								state.blocklistCacheProperty().set( cache );
-								LOG.info( "Updated the block list cache -- ready for 3D rendering." );
-							}
-							catch ( IOException | InterruptedException | ExecutionException e )
-							{
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						} ).start();
-			} );
-		} ).start();
-
-		final Cache< ShapeKey, Pair< float[], float[] > > cache = new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( key -> {
-			final Interval interval = key.interval();
-			if ( interval == null )
-				return new ValuePair<>( new float[] {}, new float[] {} );
-
-			final RandomAccessibleInterval< UnsignedLongType > uls = state.getUnsignedLongSource( 0, key.scaleIndex() );
-
-			final AffineTransform3D transform = new AffineTransform3D();
-			spec.getSourceTransform( 0, key.scaleIndex(), transform );
-
-			final double[] a = transform.getRowPackedCopy();
-			final double scaleX = Math.sqrt(
-					a[ 0 ] * a[ 0 ] +
-							a[ 4 ] * a[ 4 ] +
-							a[ 8 ] * a[ 8 ] );
-			final double scaleY = Math.sqrt(
-					a[ 1 ] * a[ 1 ] +
-							a[ 5 ] * a[ 5 ] +
-							a[ 9 ] * a[ 9 ] );
-			final double scaleZ = Math.sqrt(
-					a[ 2 ] * a[ 2 ] +
-							a[ 6 ] * a[ 6 ] +
-							a[ 10 ] * a[ 10 ] );
-
-			final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
-			final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
-			final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
-			final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
-			final int maxBlockScale = ( int ) Math.ceil( 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
-
-			final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
-
-			// TODO enforce that blocks are consistent!
-			final float[] mesh = // applyTransformation(
-					new MarchingCubes<>(
-							Views.extendZero( Converters.convert( uls, ( src, tgt ) -> tgt.set( src.get() == key.shapeId() ), new BitType() ) ),
-							Intervals.expand( interval, Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ),
-							transform,
-							cubeSize ).generateMesh();
-//						transform );
-			final float[] normals = new float[ mesh.length ];
-			MarchingCubes.averagedSurfaceNormals( mesh, normals );
-			for ( int i = 0; i < normals.length; ++i )
-				normals[ i ] *= -1;
-
-			return new ValuePair<>( mesh, normals );
-		} );
-
-		state.meshesCacheProperty().set( cache );
+		state.blocklistCacheProperty().set( blocksForLabelCache );
+		state.meshesCacheProperty().set( meshCaches );
 	}
 
 }
