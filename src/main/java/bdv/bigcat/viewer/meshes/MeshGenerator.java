@@ -301,12 +301,13 @@ public class MeshGenerator< T >
 		{
 			blockList.addAll( Arrays.asList( blockListCache[ 0 ].get( id ) ) );
 		}
-
 		catch ( final ExecutionException e )
 		{
 			LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
 			return;
 		}
+
+		LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
 
 		final List< ShapeKey > keys = new ArrayList<>();
 		for ( final Interval block : blockList )

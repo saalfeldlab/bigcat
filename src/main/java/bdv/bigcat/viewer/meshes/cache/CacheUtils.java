@@ -110,12 +110,12 @@ public class CacheUtils
 		@SuppressWarnings( "unchecked" )
 		final CacheLoader< Long, Interval[] >[] loaders = new CacheLoader[ numMipmapLevels ];
 
-		LOG.warn( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
-		LOG.warn( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
+		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
+		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
 
 		for ( int level = numMipmapLevels - 1; level >= 0; --level )
 		{
-			LOG.warn( "Adding loader for level {} (out of {} total)", level, numMipmapLevels );
+			LOG.debug( "Adding loader for level {} (out of {} total)", level, numMipmapLevels );
 			final Interval interval = source.getDataSource( 0, level );
 			final long[] dims = Intervals.dimensionsAsLongArray( interval );
 			final long[] max = Arrays.stream( dims ).map( v -> v - 1 ).toArray();
@@ -156,15 +156,24 @@ public class CacheUtils
 		final int nDim = grid.numDimensions();
 
 		// factors to go from higher res to lower res (ignoring any offset)
-//		final double[] scalingFactors = IntStream.range( 0, nDim ).mapToDouble( d -> lowerResScalingFactors[ d ] / higherResScalingFactors[ d ] ).toArray();
+		final double[] scalingFactors = IntStream.range( 0, nDim ).mapToDouble( d -> lowerResScalingFactors[ d ] / higherResScalingFactors[ d ] ).toArray();
 
-		// factors to go from low res to higher res (ignoring any offset)
-		final double[] scalingFactors = IntStream.range( 0, nDim ).mapToDouble( d -> higherResScalingFactors[ d ] / lowerResScalingFactors[ d ] ).toArray();
 		return interval -> {
+
+			LOG.debug(
+					"Using scaling factors: low-res={}, high-res={}, relative={}",
+					Arrays.toString( lowerResScalingFactors ),
+					Arrays.toString( higherResScalingFactors ),
+					Arrays.toString( scalingFactors ) );
+			// min and max of low res interval
 			final long[] min = Intervals.minAsLongArray( interval );
 			final long[] max = Intervals.maxAsLongArray( interval );
+
+			// max possible value for high res interval
 			final long[] intervalMax = grid.getImgDimensions();
 			final int[] blockSize = new int[ min.length ];
+
+			// map min and max into high res
 			for ( int d = 0; d < min.length; ++d )
 			{
 				min[ d ] = ( long ) Math.floor( min[ d ] * scalingFactors[ d ] / grid.cellDimension( d ) ) * grid.cellDimension( d );
@@ -172,6 +181,7 @@ public class CacheUtils
 				blockSize[ d ] = grid.cellDimension( d );
 				intervalMax[ d ] -= 1;
 			}
+			LOG.debug( "{} -- mapped low res interval {} into {}", grid, toString( interval ), toString( new FinalInterval( min, max ) ) );
 			final Interval completeInterval = new FinalInterval( grid.getImgDimensions() );
 			return collectAllOffsets( min, max, blockSize, b -> fromMin( b, intervalMax, blockSize ) )
 					.stream()
@@ -364,6 +374,11 @@ public class CacheUtils
 		for ( int d = 0; d < max.length; ++d )
 			max[ d ] = Math.min( min[ d ] + blockSize[ d ] - 1, intervalMax[ d ] );
 		return new FinalInterval( min, max );
+	}
+
+	public static String toString( final Interval interval )
+	{
+		return "(" + Point.wrap( Intervals.minAsLongArray( interval ) ) + " " + Point.wrap( Intervals.maxAsLongArray( interval ) ) + ")";
 	}
 
 }

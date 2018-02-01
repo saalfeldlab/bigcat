@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.meshes.cache;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -87,7 +88,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				.flatMap( List::stream )
 				.map( HashWrapper::interval )
 				.forEach( blocks::add );
-		LOG.warn( "Got {} block candidates.", blocks.size() );
+		LOG.debug( "{} -- got {} block candidates: {}", grid, blocks.size(), toString( blocks ) );
 
 		final List< Future< Interval > > futures = new ArrayList<>();
 		blocks.forEach( block -> {
@@ -107,12 +108,12 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			final Interval result = futures.get( i ).get();
 			if ( result != null )
 			{
-				LOG.warn( "Adding interval: " + Point.wrap( Intervals.minAsLongArray( result ) ) + " " + Point.wrap( Intervals.maxAsLongArray( result ) ) );
+				LOG.trace( "Adding interval: " + Point.wrap( Intervals.minAsLongArray( result ) ) + " " + Point.wrap( Intervals.maxAsLongArray( result ) ) );
 				results.add( result );
 			}
 		}
 
-		LOG.warn( "Found a total of {} blocks", results.size() );
+		LOG.debug( "Found a total of {} blocks", results.size() );
 
 		return results.toArray( new Interval[ results.size() ] );
 	}
@@ -220,6 +221,15 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 		return Arrays.asList(
 				new FinalInterval( Arrays.stream( min ).map( m -> m * 2 + 0 ).toArray(), Arrays.stream( min ).map( m -> m * 2 + 1 ).toArray() ),
 				new FinalInterval( Arrays.stream( min ).map( m -> m * 2 + 2 ).toArray(), Arrays.stream( min ).map( m -> m * 2 + 3 ).toArray() ) );
+	}
+
+	public static String toString( final Collection< HashWrapper< Interval > > list )
+	{
+		return list
+				.stream()
+				.map( HashWrapper::getData )
+				.map( i -> "(" + Point.wrap( Intervals.minAsLongArray( i ) ) + " " + Point.wrap( Intervals.maxAsLongArray( i ) ) + ")" )
+				.collect( Collectors.toList() ).toString();
 	}
 
 }
