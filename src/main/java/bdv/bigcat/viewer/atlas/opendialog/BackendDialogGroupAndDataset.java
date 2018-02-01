@@ -21,7 +21,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -161,39 +160,15 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 	}
 
 	@Override
-	public DoubleProperty resolutionX()
+	public DoubleProperty[] resolution()
 	{
-		return this.datasetInfo.spatialResolutionProperties()[ 0 ];
+		return this.datasetInfo.spatialResolutionProperties();
 	}
 
 	@Override
-	public DoubleProperty resolutionY()
+	public DoubleProperty[] offset()
 	{
-		return this.datasetInfo.spatialResolutionProperties()[ 1 ];
-	}
-
-	@Override
-	public DoubleProperty resolutionZ()
-	{
-		return this.datasetInfo.spatialResolutionProperties()[ 2 ];
-	}
-
-	@Override
-	public DoubleProperty offsetX()
-	{
-		return this.datasetInfo.spatialOffsetProperties()[ 0 ];
-	}
-
-	@Override
-	public DoubleProperty offsetY()
-	{
-		return this.datasetInfo.spatialOffsetProperties()[ 1 ];
-	}
-
-	@Override
-	public DoubleProperty offsetZ()
-	{
-		return this.datasetInfo.spatialOffsetProperties()[ 2 ];
+		return this.datasetInfo.spatialOffsetProperties();
 	}
 
 	@Override
@@ -218,18 +193,6 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 	public Consumer< Collection< String > > combiner()
 	{
 		return strings -> this.error.set( String.join( "\n", strings ) );
-	}
-
-	@Override
-	public IntegerProperty numDimensions()
-	{
-		return this.numDimensions();
-	}
-
-	@Override
-	public ObjectProperty< AxisOrder > axisOrder()
-	{
-		return this.datasetInfo.selectedAxisOrderProperty();
 	}
 
 	@Override
