@@ -105,10 +105,8 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
-import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
@@ -1001,17 +999,26 @@ public class Atlas
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 		final int[][] cubeSizes = Stream.generate( () -> new int[] { 10, 10, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
-		final CacheLoader< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelLoaders( spec, blockSizes, collectLabels );
-		final CacheLoader< Long, Interval[] >[] blocksForLabelLoaders = CacheUtils.blocksForLabelLoaders( spec, uniqueLabelLoaders, blockSizes, scalingFactors, es );
+
+		final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+				spec,
+				blockSizes,
+				collectLabels,
+				CacheUtils::toCacheSoftRefLoaderCache );
+
+		final Cache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+				spec,
+				uniqueLabelLoaders,
+				blockSizes,
+				scalingFactors,
+				CacheUtils::toCacheSoftRefLoaderCache,
+				es );
+
 		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				spec,
 				cubeSizes,
 				getMaskGenerator,
-				l -> new SoftRefLoaderCache< ShapeKey, Pair< float[], float[] > >().withLoader( l ) );
-		@SuppressWarnings( "unchecked" )
-		final Cache< Long, Interval[] >[] blocksForLabelCache = new Cache[ blocksForLabelLoaders.length ];
-		for ( int d = 0; d < blocksForLabelCache.length; ++d )
-			blocksForLabelCache[ d ] = new SoftRefLoaderCache< Long, Interval[] >().withLoader( blocksForLabelLoaders[ d ] );
+				CacheUtils::toCacheSoftRefLoaderCache );
 
 		state.blocklistCacheProperty().set( blocksForLabelCache );
 		state.meshesCacheProperty().set( meshCaches );

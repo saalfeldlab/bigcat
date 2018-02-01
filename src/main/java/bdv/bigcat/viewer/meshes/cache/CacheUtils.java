@@ -26,6 +26,7 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -54,31 +55,32 @@ public class CacheUtils
 	 * @return cascade of {@link CacheLoader} that produce a list of unique
 	 *         labels in a specified block (key) at each scale level.
 	 */
-	public static < D, T > CacheLoader< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders(
+	public static < D, T > Cache< HashWrapper< long[] >, long[] >[] uniqueLabelCaches(
 			final DataSource< D, T > source,
 			final int[][] blockSizes,
-			final BiConsumer< D, TLongHashSet > collectLabels )
+			final BiConsumer< D, TLongHashSet > collectLabels,
+			final Function< CacheLoader< HashWrapper< long[] >, long[] >, Cache< HashWrapper< long[] >, long[] > > makeCache )
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		assert blockSizes.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final CacheLoader< HashWrapper< long[] >, long[] >[] loaders = new CacheLoader[ numMipmapLevels ];
+		final Cache< HashWrapper< long[] >, long[] >[] caches = new Cache[ numMipmapLevels ];
 
 		for ( int level = 0; level < numMipmapLevels; ++level )
 		{
 			final RandomAccessibleInterval< D > data = source.getDataSource( 0, level );
 			final boolean isZeroMin = Arrays.stream( Intervals.minAsLongArray( data ) ).filter( m -> m != 0 ).count() == 0;
 			final CellGrid grid = new CellGrid( Intervals.dimensionsAsLongArray( data ), blockSizes[ level ] );
-			loaders[ level ] = new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels );
+			caches[ level ] = makeCache.apply( new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels ) );
 		}
-		return loaders;
+		return caches;
 	}
 
 	/**
 	 *
-	 * Create cascade of cache loaders that produce list of containing blocks
-	 * for a label at each scale level.
+	 * Create cascade of caches that produce list of containing blocks for a
+	 * label at each scale level.
 	 *
 	 * @param source
 	 * @param uniqueLabelLoaders
@@ -91,24 +93,27 @@ public class CacheUtils
 	 *            scaling factors for each scale level, relative to a common
 	 *            baseline. Usually, {@link scalingFactors[ 0 ] == 1} should be
 	 *            the case.
+	 * @param makeCache
+	 *            Build a {@link Cache} from a {@link CacheLoader}
 	 * @param es
 	 *            {@link ExecutorService} for parallel execution of retrieval of
 	 *            lists of unique labels. The task is parallelized over blocks.
-	 * @return Cascade of {@link CacheLoader} loaders that produce list of
-	 *         containing blocks for a label (key) at each scale level.
+	 * @return Cascade of {@link Cache} that produce list of containing blocks
+	 *         for a label (key) at each scale level.
 	 */
-	public static < D, T > CacheLoader< Long, Interval[] >[] blocksForLabelLoaders(
+	public static < D, T > Cache< Long, Interval[] >[] blocksForLabelCaches(
 			final DataSource< D, T > source,
-			final CacheLoader< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
+			final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
 			final double[][] scalingFactors,
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache,
 			final ExecutorService es )
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		assert uniqueLabelLoaders.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final CacheLoader< Long, Interval[] >[] loaders = new CacheLoader[ numMipmapLevels ];
+		final Cache< Long, Interval[] >[] caches = new Cache[ numMipmapLevels ];
 
 		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
 		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
@@ -122,15 +127,16 @@ public class CacheUtils
 			final int[] bs = blockSizes[ level ];
 			final CellGrid grid = new CellGrid( dims, bs );
 			final int finalLevel = level;
-			loaders[ level ] = new BlocksForLabelCacheLoader(
+			final CacheLoader< Long, Interval[] > loader = new BlocksForLabelCacheLoader(
 					grid,
-					level == numMipmapLevels - 1 ? l -> new Interval[] { new FinalInterval( dims.clone() ) } : wrapAsFunction( loaders[ level + 1 ] ),
+					level == numMipmapLevels - 1 ? l -> new Interval[] { new FinalInterval( dims.clone() ) } : wrapAsFunction( caches[ level + 1 ] ),
 					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
 					wrapAsFunction( key -> uniqueLabelLoaders[ finalLevel ].get( HashWrapper.longArray( key ) ) ),
 					es );
+			caches[ level ] = makeCache.apply( loader );
 		}
 
-		return loaders;
+		return caches;
 	}
 
 	/**
@@ -379,6 +385,11 @@ public class CacheUtils
 	public static String toString( final Interval interval )
 	{
 		return "(" + Point.wrap( Intervals.minAsLongArray( interval ) ) + " " + Point.wrap( Intervals.maxAsLongArray( interval ) ) + ")";
+	}
+
+	public static < K, V > Cache< K, V > toCacheSoftRefLoaderCache( final CacheLoader< K, V > loader )
+	{
+		return new SoftRefLoaderCache< K, V >().withLoader( loader );
 	}
 
 }
