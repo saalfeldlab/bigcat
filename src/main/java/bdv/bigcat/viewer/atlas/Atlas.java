@@ -1026,10 +1026,18 @@ public class Atlas
 		{
 			final double[] factors = scaleFactors[ level ];
 			final AffineTransform3D transform = new AffineTransform3D();
+			source.getSourceTransform( 0, level, transform );
 			factors[ 0 ] = transform.get( 0, 0 ) / reference.get( 0, 0 );
 			factors[ 1 ] = transform.get( 1, 1 ) / reference.get( 1, 1 );
 			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
 		}
+
+		if ( LOG.isDebugEnabled() )
+		{
+			LOG.debug( "Generated scaling factors:" );
+			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::warn );
+		}
+
 		return scaleFactors;
 	}
 
