@@ -534,15 +534,15 @@ public class Atlas
 			state.meshesCacheProperty().set( meshCache );
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
-		else
+		else // TODO get to the scale factors somehow (affine transform might be
+				// off-diagonal in case of permutations)
 			generateMeshCaches(
 					spec,
 					state,
-					new double[][] { { 1, 1, 1 } },
+					scaleFactorsFromAffineTransforms( spec ),
 					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
 					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
 					generalPurposeExecutorService );
-//			generateMeshCaches( spec, state, System.getProperty( "user.home" ) + "/local/tmp/blockCache/" + spec.getName() );
 
 	}
 
@@ -632,7 +632,7 @@ public class Atlas
 			generateMeshCaches(
 					spec,
 					state,
-					new double[][] { { 1, 1, 1 } },
+					scaleFactorsFromAffineTransforms( spec ),
 					( lbl, set ) -> set.add( lbl.getIntegerLong() ),
 					lbl -> ( src, tgt ) -> tgt.set( src.getIntegerLong() == lbl ),
 					generalPurposeExecutorService );
@@ -1015,6 +1015,22 @@ public class Atlas
 
 		state.blocklistCacheProperty().set( blocksForLabelCache );
 		state.meshesCacheProperty().set( meshCaches );
+	}
+
+	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )
+	{
+		final double[][] scaleFactors = new double[ source.getNumMipmapLevels() ][ 3 ];
+		final AffineTransform3D reference = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, reference );
+		for ( int level = 0; level < scaleFactors.length; ++level )
+		{
+			final double[] factors = scaleFactors[ level ];
+			final AffineTransform3D transform = new AffineTransform3D();
+			factors[ 0 ] = transform.get( 0, 0 ) / reference.get( 0, 0 );
+			factors[ 1 ] = transform.get( 1, 1 ) / reference.get( 1, 1 );
+			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
+		}
+		return scaleFactors;
 	}
 
 }
