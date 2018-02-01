@@ -1035,7 +1035,7 @@ public class Atlas
 		if ( LOG.isDebugEnabled() )
 		{
 			LOG.debug( "Generated scaling factors:" );
-			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::warn );
+			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::debug );
 		}
 
 		return scaleFactors;
