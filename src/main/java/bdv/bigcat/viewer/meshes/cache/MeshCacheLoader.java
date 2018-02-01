@@ -1,8 +1,12 @@
 package bdv.bigcat.viewer.meshes.cache;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.meshes.marchingcubes.MarchingCubes;
@@ -19,6 +23,8 @@ import net.imglib2.view.Views;
 
 public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[], float[] > >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final int[] cubeSize;
 
@@ -76,7 +82,12 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 
 	public static Pair< float[], float[] > simplifyMesh( final float[] vertices, final float[] normals )
 	{
-		return new ValuePair<>( new float[] {}, new float[] {} );
+		LOG.warn( "This is just a mock mesh simplification currently!" );
+		final float[] newVertices = new float[ vertices.length / 2 / 9 * 9 ];
+		final float[] newNormals = new float[ vertices.length / 2 / 9 * 9 ];
+		System.arraycopy( vertices, 0, newVertices, 0, newVertices.length );
+		System.arraycopy( normals, 0, newNormals, 0, newNormals.length );
+		return new ValuePair<>( newVertices, newNormals );
 	}
 
 }
