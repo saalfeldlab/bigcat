@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -43,6 +42,25 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 
 	private final ExecutorService es;
 
+	/**
+	 *
+	 * @param grid
+	 * @param getRelevantIntervalsFromLowerResolution
+	 *            Get all blocks in lower resolution that contain requested
+	 *            labels. Blocks are defined by min and max in the lower
+	 *            resolution coordinate system.
+	 * @param getRelevantBlocksIntersectingWithLowResInterval
+	 *            for a block defined by min and max in lower resolution
+	 *            coordinate system, find all blocks that intersect with it at
+	 *            this resolution.
+	 * @param getUniqueLabelListForBlock
+	 *            Given a block for this resolution defined by its position in
+	 *            the cell grid, retrieve a unique list of labels present in
+	 *            this block.
+	 * @param es
+	 *            {@link ExecutorService} for parallel execution of retrieval of
+	 *            lists of unique labels. The task is parallelized over blocks.
+	 */
 	public BlocksForLabelCacheLoader(
 			final CellGrid grid,
 			final Function< Long, Interval[] > getRelevantIntervalsFromLowerResolution,
@@ -69,7 +87,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				.flatMap( List::stream )
 				.map( HashWrapper::interval )
 				.forEach( blocks::add );
-		LOG.debug( "Got {} block candidates.", blocks.size() );
+		LOG.warn( "Got {} block candidates.", blocks.size() );
 
 		final List< Future< Interval > > futures = new ArrayList<>();
 		blocks.forEach( block -> {
@@ -87,10 +105,14 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 		for ( int i = 0; i < futures.size(); ++i )
 		{
 			final Interval result = futures.get( i ).get();
-			Optional.ofNullable( result ).ifPresent( results::add );
+			if ( result != null )
+			{
+				LOG.warn( "Adding interval: " + Point.wrap( Intervals.minAsLongArray( result ) ) + " " + Point.wrap( Intervals.maxAsLongArray( result ) ) );
+				results.add( result );
+			}
 		}
 
-		LOG.debug( "Found a total of {} blocks", results.size() );
+		LOG.warn( "Found a total of {} blocks", results.size() );
 
 		return results.toArray( new Interval[ results.size() ] );
 	}

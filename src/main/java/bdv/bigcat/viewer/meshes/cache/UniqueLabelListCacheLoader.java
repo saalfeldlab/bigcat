@@ -1,8 +1,12 @@
 package bdv.bigcat.viewer.meshes.cache;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.util.HashWrapper;
 import gnu.trove.set.hash.TLongHashSet;
@@ -21,6 +25,8 @@ import net.imglib2.view.Views;
 public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper< long[] >, long[] >
 {
 
+	private final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private final RandomAccessibleInterval< T > data;
 
 	private final CellGrid grid;
@@ -35,13 +41,21 @@ public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper
 		this.collectLabels = collectLabels;
 	}
 
+	/**
+	 * @param key
+	 *            Position of block in cell grid coordinates (instead of min of
+	 *            represented block).
+	 */
 	@Override
 	public long[] get( final HashWrapper< long[] > key ) throws Exception
 	{
 		final long[] cellGridPosition = key.getData();
 
 		if ( !Intervals.contains( new FinalInterval( grid.getGridDimensions() ), Point.wrap( cellGridPosition ) ) )
+		{
+			LOG.error( "Trying to retrieve unique labels at invalid position {} for cell grid dimensions: {}", Point.wrap( cellGridPosition ), Point.wrap( grid.getGridDimensions() ) );
 			throw new IllegalArgumentException( String.format( "%s does not contain position: %s", grid.toString(), Point.wrap( cellGridPosition ).toString() ) );
+		}
 
 		final long[] min = new long[ grid.numDimensions() ];
 		final long[] max = new long[ grid.numDimensions() ];
