@@ -529,7 +529,6 @@ public class SourceTabs
 		statusBar.setTooltip( statusToolTip );
 		statusBar.setProgress( 1.0 );
 		progress.addListener( ( obs, oldv, newv ) -> statusBar.setProgress( Double.isFinite( newv.doubleValue() ) ? newv.doubleValue() : 1.0 ) );
-		statusBar.progressProperty().bind( progress );
 
 		pane.setGraphic( statusBar );
 		return pane;
