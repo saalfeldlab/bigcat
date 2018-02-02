@@ -217,7 +217,14 @@ public class Atlas
 				this.sourceInfo );
 
 		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
-		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
+
+		final Slider slider = new Slider( 0, 10, settings.meshSimplificationIterationsProperty().get() );
+		slider.valueProperty().addListener( ( observ, oldv, newv ) -> slider.setValue( Math.round( newv.doubleValue() ) ) );
+		final Label sliderText = new Label();
+		sliderText.textProperty().bind( slider.valueProperty().asString() );
+		slider.valueProperty().bindBidirectional( settings.meshSimplificationIterationsProperty() );
+
+		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ), new HBox( slider, sliderText ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 
@@ -492,7 +499,7 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, this.generalPurposeExecutorService );
+		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, settings.meshSimplificationIterationsProperty(), this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{
@@ -586,7 +593,7 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, this.generalPurposeExecutorService );
+		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, settings.meshSimplificationIterationsProperty(), this.generalPurposeExecutorService );
 
 		view.addActor( new ViewerActor()
 		{
@@ -998,7 +1005,7 @@ public class Atlas
 	{
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
-		final int[][] cubeSizes = Stream.generate( () -> new int[] { 10, 10, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
 		final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
 				spec,

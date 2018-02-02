@@ -21,6 +21,7 @@ import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -46,6 +47,8 @@ public class MeshManager
 
 	private final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments;
 
+	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
+
 	private final ExecutorService es;
 
 	public MeshManager(
@@ -53,6 +56,7 @@ public class MeshManager
 			final AtlasSourceState< ?, ? > state,
 			final Group root,
 			final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments,
+			final ObservableIntegerValue meshSimplificationIterations,
 			final ExecutorService es )
 	{
 		super();
@@ -60,6 +64,12 @@ public class MeshManager
 		this.state = state;
 		this.root = root;
 		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
+		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
+		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
+			System.out.println( "ADDED MESH SIMPLIFICATION ITERATIONS" );
+			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
+		} );
+
 		this.es = es;
 
 		this.fragmentsInSelectedSegments.addListener( this::update );
@@ -112,7 +122,10 @@ public class MeshManager
 				blockListCache,
 				meshCache,
 				color,
+				meshSimplificationIterations.get(),
 				es );
+		nfx.meshSimplificationIterationsProperty().bind( meshSimplificationIterations );
+		nfx.meshSimplificationIterationsProperty().addListener( ( obs, oldv, newv ) -> System.out.println( "SETTING SIMPL ITER TO " + newv ) );
 		nfx.rootProperty().set( this.root );
 
 		neurons.add( nfx );

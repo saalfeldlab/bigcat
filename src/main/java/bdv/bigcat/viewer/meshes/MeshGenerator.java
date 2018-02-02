@@ -213,7 +213,7 @@ public class MeshGenerator< T >
 
 	private final IntegerProperty scaleIndex = new SimpleIntegerProperty( 0 );
 
-	private final IntegerProperty meshSimplificationIteratoins = new SimpleIntegerProperty( 0 );
+	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty( 0 );
 
 	private final BooleanProperty changed = new SimpleBooleanProperty( false );
 
@@ -234,6 +234,7 @@ public class MeshGenerator< T >
 			final Cache< Long, Interval[] >[] blockListCache,
 			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
+			final int meshSimplificationIterations,
 			final ExecutorService es )
 	{
 		super();
@@ -246,8 +247,11 @@ public class MeshGenerator< T >
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
-		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, meshSimplificationIteratoins );
+		this.meshSimplificationIterations.set( meshSimplificationIterations );
+		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, this.meshSimplificationIterations );
 
+		this.meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+		this.scaleIndex.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 		scaleOrSimplificationChanged.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.root.addListener( ( obs, oldv, newv ) -> {
@@ -275,6 +279,7 @@ public class MeshGenerator< T >
 					} );
 			} );
 		} );
+
 		this.changed.set( true );
 
 	}
@@ -299,7 +304,7 @@ public class MeshGenerator< T >
 		final List< Interval > blockList = new ArrayList<>();
 		try
 		{
-			blockList.addAll( Arrays.asList( blockListCache[ 0 ].get( id ) ) );
+			blockList.addAll( Arrays.asList( blockListCache[ 2 ].get( id ) ) );
 		}
 		catch ( final ExecutionException e )
 		{
@@ -311,7 +316,7 @@ public class MeshGenerator< T >
 
 		final List< ShapeKey > keys = new ArrayList<>();
 		for ( final Interval block : blockList )
-			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIteratoins.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIterations.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 		final ArrayList< Future< Void > > tasks = new ArrayList<>();
 		synchronized ( this.activeTasks )
 		{
@@ -322,7 +327,7 @@ public class MeshGenerator< T >
 					{
 						Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
 						LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-						final Pair< float[], float[] > verticesAndNormals = meshCache[ 0 ].get( key );
+						final Pair< float[], float[] > verticesAndNormals = meshCache[ 2 ].get( key );
 						final float[] vertices = verticesAndNormals.getA();
 						final float[] normals = verticesAndNormals.getB();
 						final TriangleMesh mesh = new TriangleMesh();
@@ -417,6 +422,11 @@ public class MeshGenerator< T >
 				r.run();
 			}
 		};
+	}
+
+	public IntegerProperty meshSimplificationIterationsProperty()
+	{
+		return this.meshSimplificationIterations;
 	}
 
 }
