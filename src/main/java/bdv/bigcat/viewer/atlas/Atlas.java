@@ -219,13 +219,7 @@ public class Atlas
 
 		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
 
-		final Slider slider = new Slider( 0, 10, settings.meshSimplificationIterationsProperty().get() );
-		slider.valueProperty().addListener( ( observ, oldv, newv ) -> slider.setValue( Math.round( newv.doubleValue() ) ) );
-		final Label sliderText = new Label();
-		sliderText.textProperty().bind( slider.valueProperty().asString() );
-		slider.valueProperty().bindBidirectional( settings.meshSimplificationIterationsProperty() );
-
-		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ), new HBox( slider, sliderText ) );
+		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 
