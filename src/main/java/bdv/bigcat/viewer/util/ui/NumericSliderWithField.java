@@ -17,7 +17,7 @@ public class NumericSliderWithField
 			final int max,
 			final int initialValue )
 	{
-		this( min, max, initialValue, 2, true );
+		this( min, max, initialValue, 0, true );
 	}
 
 	public NumericSliderWithField(
