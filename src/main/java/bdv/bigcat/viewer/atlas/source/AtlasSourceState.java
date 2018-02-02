@@ -8,6 +8,8 @@ import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.MeshInfos;
+import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.util.IdService;
@@ -88,6 +90,10 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	private final ObjectProperty< Cache< Long, Interval[] >[] > blockListCache = new SimpleObjectProperty<>( null );
 
 	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCache = new SimpleObjectProperty<>( null );
+
+	private final ObjectProperty< MeshManager > meshManager = new SimpleObjectProperty<>( null );
+
+	private final ObjectProperty< MeshInfos > meshInfos = new SimpleObjectProperty<>( null );
 
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
@@ -227,6 +233,16 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
 	{
 		return this.meshesCache;
+	}
+
+	public ObjectProperty< MeshManager > meshManagerProperty()
+	{
+		return this.meshManager;
+	}
+
+	public ObjectProperty< MeshInfos > meshInfosProperty()
+	{
+		return this.meshInfos;
 	}
 
 	private static ARGBType toARGBType( final Color color )

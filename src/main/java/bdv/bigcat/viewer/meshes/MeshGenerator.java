@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -234,6 +233,7 @@ public class MeshGenerator< T >
 			final Cache< Long, Interval[] >[] blockListCache,
 			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
+			final int scaleIndex,
 			final int meshSimplificationIterations,
 			final ExecutorService es )
 	{
@@ -247,12 +247,11 @@ public class MeshGenerator< T >
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
+		this.scaleIndex.set( scaleIndex );
 		this.meshSimplificationIterations.set( meshSimplificationIterations );
-		final BooleanBinding scaleOrSimplificationChanged = Bindings.createBooleanBinding( () -> true, scaleIndex, this.meshSimplificationIterations );
 
 		this.meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 		this.scaleIndex.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
-		scaleOrSimplificationChanged.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.root.addListener( ( obs, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
@@ -304,7 +303,7 @@ public class MeshGenerator< T >
 		final List< Interval > blockList = new ArrayList<>();
 		try
 		{
-			blockList.addAll( Arrays.asList( blockListCache[ 2 ].get( id ) ) );
+			blockList.addAll( Arrays.asList( blockListCache[ scaleIndex ].get( id ) ) );
 		}
 		catch ( final ExecutionException e )
 		{
@@ -327,7 +326,7 @@ public class MeshGenerator< T >
 					{
 						Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
 						LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-						final Pair< float[], float[] > verticesAndNormals = meshCache[ 2 ].get( key );
+						final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].get( key );
 						final float[] vertices = verticesAndNormals.getA();
 						final float[] normals = verticesAndNormals.getB();
 						final TriangleMesh mesh = new TriangleMesh();
@@ -427,6 +426,11 @@ public class MeshGenerator< T >
 	public IntegerProperty meshSimplificationIterationsProperty()
 	{
 		return this.meshSimplificationIterations;
+	}
+
+	public IntegerProperty scaleIndexProperty()
+	{
+		return this.scaleIndex;
 	}
 
 }

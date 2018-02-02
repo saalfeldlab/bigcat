@@ -1,10 +1,16 @@
 package bdv.bigcat.viewer.atlas.source;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -12,7 +18,12 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.atlas.CurrentModeConverter;
+import bdv.bigcat.viewer.meshes.MeshInfo;
+import bdv.bigcat.viewer.meshes.MeshInfoNode;
+import bdv.bigcat.viewer.meshes.MeshInfos;
+import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
+import bdv.bigcat.viewer.util.ui.NumericSliderWithField;
 import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -57,6 +68,8 @@ import net.imglib2.type.numeric.ARGBType;
 
 public class SourceTabs
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final VBox contents = new VBox();
 	{
@@ -178,8 +191,16 @@ public class SourceTabs
 
 		final VBox info = new VBox();
 
-		Optional.ofNullable( compositeInfo( state.compositeProperty() ) ).ifPresent( node -> info.getChildren().add( node ) );
-		Optional.ofNullable( converterInfo( conv, state ) ).ifPresent( node -> info.getChildren().add( node ) );
+		Optional.ofNullable( compositeInfo( state.compositeProperty() ) ).ifPresent( info.getChildren()::add );
+		Optional.ofNullable( converterInfo( conv, state ) ).ifPresent( info.getChildren()::add );
+		Optional
+				.ofNullable( state.meshManagerProperty().get() )
+				.map( m -> meshManager( m, state.dataSourceProperty().get().getNumMipmapLevels() ) )
+				.ifPresent( info.getChildren()::add );
+		Optional
+				.ofNullable( state.meshInfosProperty().get() )
+				.map( SourceTabs::meshInfos )
+				.ifPresent( info.getChildren()::add );
 
 		return info;
 	}
@@ -427,6 +448,66 @@ public class SourceTabs
 		}
 
 		return tp;
+	}
+
+	public static Node meshManager( final MeshManager manager, final int numScaleLevels )
+	{
+		final GridPane contents = new GridPane();
+		final VBox box = new VBox( new Label( "Defaults" ), contents );
+
+		int row = 0;
+
+		final NumericSliderWithField scaleSlider = new NumericSliderWithField( 0, numScaleLevels - 1, manager.scaleLevelProperty().get() );
+		contents.add( new Label( "Scale" ), 0, row );
+		contents.add( scaleSlider.slider(), 1, row );
+		contents.add( scaleSlider.textField(), 2, row );
+		scaleSlider.slider().setShowTickLabels( true );
+		scaleSlider.slider().setTooltip( new Tooltip( "Default for scale level." ) );
+		scaleSlider.slider().valueProperty().bindBidirectional( manager.scaleLevelProperty() );
+		++row;
+
+		final NumericSliderWithField simplificationSlider = new NumericSliderWithField( 0, 10, 0 );
+		contents.add( new Label( "Iterations" ), 0, row );
+		contents.add( simplificationSlider.slider(), 1, row );
+		contents.add( simplificationSlider.textField(), 2, row );
+		simplificationSlider.slider().setShowTickLabels( true );
+		simplificationSlider.slider().setTooltip( new Tooltip( "Default for simplification iterations." ) );
+		simplificationSlider.slider().valueProperty().bindBidirectional( manager.meshSimplificationIterationsProperty() );
+		++row;
+
+		return box;
+	}
+
+	public static Node meshInfos( final MeshInfos meshInfos )
+	{
+		LOG.warn( "Generating mesh infos tab!" );
+		final VBox meshes = new VBox();
+		final VBox contents = new VBox( new Label( "Meshes" ), meshes );
+		final Map< MeshInfo, MeshInfoNode > infoNodes = new HashMap<>();
+
+		meshInfos.readOnlyInfos().addListener( ( ListChangeListener< MeshInfo > ) listener -> {
+			final ArrayList< MeshInfo > copy = new ArrayList<>( meshInfos.readOnlyInfos() );
+
+			final List< TitledPane > mapped = copy
+					.stream()
+					.map( info -> new TitledPane( "Neuron " + info.segmentId(), getOrDefault( infoNodes, info, new MeshInfoNode( info ) ).getNode() ) )
+					.collect( Collectors.toList() );
+			InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().setAll( mapped ) );
+		} );
+
+		return contents;
+	}
+
+	public static < K, V > V getOrDefault( final Map< K, V > map, final K key, final V defaultValue )
+	{
+		final V value = map.get( key );
+		if ( value == null )
+		{
+			map.put( key, defaultValue );
+			return defaultValue;
+		}
+		else
+			return value;
 	}
 
 }

@@ -75,7 +75,7 @@ public class SourceInfo
 
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > compositesReadOnly = FXCollections.unmodifiableObservableMap( composites );
 
-	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -85,11 +85,22 @@ public class SourceInfo
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
 		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, AtlasSourceState.TYPE.RAW );
+		return state;
+	}
+
+	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
+			final DataSource< D, T > source,
+			final double min,
+			final double max,
+			final ARGBType color,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+		final AtlasSourceState< T, D > state = makeRawSourceState( source, min, max, color, composite );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > addLabelSource(
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > makeLabelSourceState(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
@@ -105,11 +116,25 @@ public class SourceInfo
 		state.assignmentProperty().set( frag );
 		state.streamProperty().set( stream );
 		state.selectedIdsProperty().set( selectedIds );
+		return state;
+	}
+
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > addLabelSource(
+			final DataSource< D, T > source,
+			final ToIdConverter idConverter,
+			final Function< D, Converter< D, BoolType > > toBoolConverter,
+			final F frag,
+			final ARGBStream stream,
+			final SelectedIds selectedIds,
+			final Converter< T, ARGBType > converter,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+		final AtlasSourceState< T, D > state = makeLabelSourceState( source, idConverter, toBoolConverter, frag, stream, selectedIds, converter, composite );
 		addState( source, state );
 		return state;
 	}
 
-	private synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
+	public synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever

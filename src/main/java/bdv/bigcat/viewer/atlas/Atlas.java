@@ -51,6 +51,7 @@ import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.MeshInfos;
 import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -474,7 +475,7 @@ public class Atlas
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
-		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.addLabelSource(
+		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.makeLabelSourceState(
 				spec,
 				ToIdConverter.fromLabelMultisetType(),
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
@@ -499,7 +500,17 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, settings.meshSimplificationIterationsProperty(), this.generalPurposeExecutorService );
+		final MeshManager meshManager = new MeshManager(
+				spec,
+				state,
+				renderView.meshesGroup(),
+				fragmentsInSelection,
+				settings.meshSimplificationIterationsProperty(),
+				this.generalPurposeExecutorService );
+
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		state.meshManagerProperty().set( meshManager );
+		state.meshInfosProperty().set( meshInfos );
 
 		view.addActor( new ViewerActor()
 		{
@@ -549,6 +560,8 @@ public class Atlas
 					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
 					generalPurposeExecutorService );
 
+		sourceInfo.addState( spec, state );
+
 	}
 
 	// TODO Is there a better bound for V than AbstractVolatileRealType? V
@@ -571,7 +584,7 @@ public class Atlas
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
-		final AtlasSourceState< V, I > state = sourceInfo.addLabelSource(
+		final AtlasSourceState< V, I > state = sourceInfo.makeLabelSourceState(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
 				sel -> createBoolConverter( sel, assignment ),
@@ -593,7 +606,17 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		new MeshManager( spec, state, renderView.meshesGroup(), fragmentsInSelection, settings.meshSimplificationIterationsProperty(), this.generalPurposeExecutorService );
+		final MeshManager meshManager = new MeshManager(
+				spec,
+				state,
+				renderView.meshesGroup(),
+				fragmentsInSelection,
+				settings.meshSimplificationIterationsProperty(),
+				this.generalPurposeExecutorService );
+
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		state.meshManagerProperty().set( meshManager );
+		state.meshInfosProperty().set( meshInfos );
 
 		view.addActor( new ViewerActor()
 		{
@@ -649,6 +672,8 @@ public class Atlas
 //			final BiConsumer< D, TLongHashSet > collectLabels,
 //			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
 //			final ExecutorService es )
+
+		sourceInfo.addState( spec, state );
 
 	}
 

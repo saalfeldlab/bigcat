@@ -1,10 +1,12 @@
 package bdv.bigcat.viewer.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -41,13 +43,15 @@ public class MeshManager
 
 	private final AtlasSourceState< ?, ? > state;
 
-	private final List< MeshGenerator< DataSource< ?, ? > > > neurons = Collections.synchronizedList( new ArrayList<>() );
+	private final Map< Long, MeshGenerator< DataSource< ?, ? > > > neurons = Collections.synchronizedMap( new HashMap<>() );
 
 	private final Group root;
 
 	private final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments;
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
+
+	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
 	private final ExecutorService es;
 
@@ -82,20 +86,19 @@ public class MeshManager
 		{
 			final TLongHashSet fragmentsInSelectedSegments = new TLongHashSet( this.fragmentsInSelectedSegments.getFragments() );
 			final TLongHashSet currentlyShowing = new TLongHashSet();
-			neurons.stream().mapToLong( MeshGenerator::getId ).forEach( currentlyShowing::add );
-			final List< MeshGenerator< DataSource< ?, ? > > > toBeRemoved = neurons.stream().filter( n -> !fragmentsInSelectedSegments.contains( n.getId() ) ).collect( Collectors.toList() );
-			toBeRemoved.forEach( this::removeNeuron );
-			neurons.removeAll( toBeRemoved );
+			neurons.values().stream().mapToLong( MeshGenerator::getId ).forEach( currentlyShowing::add );
+			final List< Entry< Long, MeshGenerator< DataSource< ?, ? > > > > toBeRemoved = neurons.entrySet().stream().filter( n -> !fragmentsInSelectedSegments.contains( n.getValue().getId() ) ).collect( Collectors.toList() );
+			toBeRemoved.stream().map( e -> e.getValue() ).forEach( this::removeNeuron );
 			Arrays.stream( fragmentsInSelectedSegments.toArray() ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> generateMesh( source, segment ) );
 		}
 	}
 
 	private void generateMesh( final DataSource< ?, ? > source, final long id )
 	{
-
 		final FragmentSegmentAssignmentState< ? > assignment = state.assignmentProperty().get();
 		if ( assignment == null )
 			return;
+
 		final ARGBStream streams = state.streamProperty().get();
 
 		if ( streams == null || !( streams instanceof AbstractHighlightingARGBStream ) )
@@ -111,7 +114,7 @@ public class MeshManager
 		if ( meshCache == null || blockListCache == null )
 			return;
 
-		for ( final MeshGenerator< DataSource< ?, ? > > neuron : neurons )
+		for ( final MeshGenerator< DataSource< ?, ? > > neuron : neurons.values() )
 			if ( neuron.getSource() == source && neuron.getId() == id )
 				return;
 
@@ -122,19 +125,34 @@ public class MeshManager
 				blockListCache,
 				meshCache,
 				color,
+				scaleLevel.get(),
 				meshSimplificationIterations.get(),
 				es );
-		nfx.meshSimplificationIterationsProperty().bind( meshSimplificationIterations );
-		nfx.meshSimplificationIterationsProperty().addListener( ( obs, oldv, newv ) -> System.out.println( "SETTING SIMPL ITER TO " + newv ) );
 		nfx.rootProperty().set( this.root );
 
-		neurons.add( nfx );
+		neurons.put( id, nfx );
 
 	}
 
 	public void removeNeuron( final MeshGenerator< DataSource< ?, ? > > mesh )
 	{
 		mesh.rootProperty().set( null );
+		this.neurons.remove( mesh.getId() );
+	}
+
+	public Map< Long, MeshGenerator< DataSource< ?, ? > > > unmodifiableMeshMap()
+	{
+		return Collections.unmodifiableMap( neurons );
+	}
+
+	public IntegerProperty scaleLevelProperty()
+	{
+		return this.scaleLevel;
+	}
+
+	public IntegerProperty meshSimplificationIterationsProperty()
+	{
+		return this.meshSimplificationIterations;
 	}
 
 }
