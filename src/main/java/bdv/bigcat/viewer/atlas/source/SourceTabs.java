@@ -527,6 +527,8 @@ public class SourceTabs
 		final Tooltip statusToolTip = new Tooltip();
 		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( completed.intValue() + "/" + submitted.intValue() ) ) );
 		statusBar.setTooltip( statusToolTip );
+		statusBar.setProgress( 1.0 );
+		progress.addListener( ( obs, oldv, newv ) -> statusBar.setProgress( Double.isFinite( newv.doubleValue() ) ? newv.doubleValue() : 1.0 ) );
 		statusBar.progressProperty().bind( progress );
 
 		pane.setGraphic( statusBar );
