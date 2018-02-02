@@ -1,14 +1,18 @@
 package bdv.bigcat.viewer.meshes;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 
 public class MeshInfo
@@ -26,6 +30,12 @@ public class MeshInfo
 
 	private final int numScaleLevels;
 
+	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
+
+	private final IntegerProperty completedTasks = new SimpleIntegerProperty( 0 );
+
+	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
+
 	public MeshInfo( final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
 	{
 		super();
@@ -42,6 +52,24 @@ public class MeshInfo
 		this.simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
 
 		this.numScaleLevels = numScaleLevels;
+
+		updateTasksCountBindings();
+		if ( assignment instanceof FragmentSegmentAssignmentState< ? > )
+			( ( FragmentSegmentAssignmentState< ? > ) assignment ).addListener( () -> updateTasksCountBindings() );
+
+	}
+
+	private void updateTasksCountBindings()
+	{
+		final long[] fragments = assignment.getFragments( segmentId ).toArray();
+		final Map< Long, MeshGenerator< DataSource< ?, ? > > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
+		final ObservableIntegerValue[] completedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::completedTasksProperty ).toArray( ObservableIntegerValue[]::new );
+		final ObservableIntegerValue[] successfulTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::successfulTasksProperty ).toArray( ObservableIntegerValue[]::new );
+
+		this.submittedTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( submittedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), submittedTasks ) );
+		this.completedTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( completedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), completedTasks ) );
+		this.successfulTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( submittedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), successfulTasks ) );
 
 	}
 
@@ -101,6 +129,21 @@ public class MeshInfo
 	public boolean equals( final Object o )
 	{
 		return o instanceof MeshInfo && ( ( MeshInfo ) o ).segmentId == segmentId;
+	}
+
+	public ObservableIntegerValue submittedTasksProperty()
+	{
+		return this.submittedTasks;
+	}
+
+	public ObservableIntegerValue completedTasksProperty()
+	{
+		return this.completedTasks;
+	}
+
+	public ObservableIntegerValue successfulTasksProperty()
+	{
+		return this.successfulTasks;
 	}
 
 }

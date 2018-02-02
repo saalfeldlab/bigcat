@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.controlsfx.control.StatusBar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -488,9 +489,9 @@ public class SourceTabs
 		meshInfos.readOnlyInfos().addListener( ( ListChangeListener< MeshInfo > ) listener -> {
 			final ArrayList< MeshInfo > copy = new ArrayList<>( meshInfos.readOnlyInfos() );
 
-			final List< TitledPane > mapped = copy
+			final List< Node > mapped = copy
 					.stream()
-					.map( info -> new TitledPane( "Neuron " + info.segmentId(), getOrDefault( infoNodes, info, new MeshInfoNode( info ) ).getNode() ) )
+					.map( info -> fromMeshInfo( info, infoNodes ) )
 					.collect( Collectors.toList() );
 			InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().setAll( mapped ) );
 		} );
@@ -508,6 +509,28 @@ public class SourceTabs
 		}
 		else
 			return value;
+	}
+
+	private static Node fromMeshInfo( final MeshInfo info, final Map< MeshInfo, MeshInfoNode > infoNodes )
+	{
+		final TitledPane pane = new TitledPane( null, getOrDefault( infoNodes, info, new MeshInfoNode( info ) ).getNode() );
+//		pane.title
+		final ObservableIntegerValue submitted = info.submittedTasksProperty();
+		final ObservableIntegerValue completed = info.completedTasksProperty();
+		final DoubleProperty progress = new SimpleDoubleProperty( 1 );
+//		submitted.addListener( ( obs, oldv, newv ) -> Platform.runLater( () -> label.setText( Integer.toString( completed.intValue() ) + "/" + Integer.toString( submitted.intValue() ) ) ) );
+//		completed.addListener( ( obs, oldv, newv ) -> Platform.runLater( () -> label.setText( Integer.toString( completed.intValue() ) + "/" + Integer.toString( submitted.intValue() ) ) ) );
+		submitted.addListener( ( obs, oldv, newv ) -> progress.set( completed.doubleValue() / submitted.doubleValue() ) );
+		completed.addListener( ( obs, oldv, newv ) -> progress.set( completed.doubleValue() / submitted.doubleValue() ) );
+		final StatusBar statusBar = new StatusBar();
+		statusBar.setText( "Neuron " + info.segmentId() );
+		final Tooltip statusToolTip = new Tooltip();
+		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( completed.intValue() + "/" + submitted.intValue() ) ) );
+		statusBar.setTooltip( statusToolTip );
+		statusBar.progressProperty().bind( progress );
+
+		pane.setGraphic( statusBar );
+		return pane;
 	}
 
 }

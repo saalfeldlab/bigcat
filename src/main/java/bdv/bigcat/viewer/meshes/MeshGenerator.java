@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -226,6 +227,12 @@ public class MeshGenerator< T >
 
 	private final List< Future< ? > > activeTasks = new ArrayList<>();
 
+	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
+
+	private final IntegerProperty completedTasks = new SimpleIntegerProperty( 0 );
+
+	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
+
 	//
 	public MeshGenerator(
 			final long segmentId,
@@ -316,71 +323,82 @@ public class MeshGenerator< T >
 		final List< ShapeKey > keys = new ArrayList<>();
 		for ( final Interval block : blockList )
 			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIterations.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
-		final ArrayList< Future< Void > > tasks = new ArrayList<>();
+		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
+		final ArrayList< Future< Void > > futures = new ArrayList<>();
+		for ( final ShapeKey key : keys )
+			tasks.add( () -> {
+				final String initialName = Thread.currentThread().getName();
+				try
+				{
+					Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
+					LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
+					final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].get( key );
+					final float[] vertices = verticesAndNormals.getA();
+					final float[] normals = verticesAndNormals.getB();
+					final TriangleMesh mesh = new TriangleMesh();
+					mesh.getPoints().addAll( vertices );
+					mesh.getNormals().addAll( normals );
+					mesh.getTexCoords().addAll( 0, 0 );
+					mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+					final int[] faceIndices = new int[ vertices.length ];
+					for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
+					{
+						faceIndices[ i + 0 ] = k;
+						faceIndices[ i + 1 ] = k;
+						faceIndices[ i + 2 ] = 0;
+					}
+					mesh.getFaces().addAll( faceIndices );
+					final PhongMaterial material = new PhongMaterial();
+					material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
+					material.setSpecularPower( 50 );
+					material.diffuseColorProperty().bind( color );
+					final MeshView mv = new MeshView( mesh );
+					mv.setOpacity( 1.0 );
+					synchronized ( this.isVisible )
+					{
+						mv.visibleProperty().bind( this.isVisible );
+					}
+					mv.setCullFace( CullFace.NONE );
+					mv.setMaterial( material );
+					mv.setDrawMode( DrawMode.FILL );
+					if ( !Thread.interrupted() )
+						synchronized ( meshes )
+						{
+							meshes.put( key, mv );
+						}
+				}
+				catch ( final ExecutionException e )
+				{
+					LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+				}
+				catch ( final RuntimeException e )
+				{
+					LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
+					e.printStackTrace();
+					throw e;
+				}
+				finally
+				{
+					Thread.currentThread().setName( initialName );
+					synchronized ( this.completedTasks )
+					{
+						this.successfulTasks.set( this.successfulTasks.get() + 1 );
+					}
+				}
+				this.completedTasks.set( this.completedTasks.get() + 1 );
+				return null;
+
+			} );
+
+		this.submittedTasks.set( tasks.size() );
+		this.successfulTasks.set( 0 );
+		this.completedTasks.set( 0 );
 		synchronized ( this.activeTasks )
 		{
-			for ( final ShapeKey key : keys )
-				tasks.add( es.submit( () -> {
-					final String initialName = Thread.currentThread().getName();
-					try
-					{
-						Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
-						LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-						final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].get( key );
-						final float[] vertices = verticesAndNormals.getA();
-						final float[] normals = verticesAndNormals.getB();
-						final TriangleMesh mesh = new TriangleMesh();
-						mesh.getPoints().addAll( vertices );
-						mesh.getNormals().addAll( normals );
-						mesh.getTexCoords().addAll( 0, 0 );
-						mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-						final int[] faceIndices = new int[ vertices.length ];
-						for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
-						{
-							faceIndices[ i + 0 ] = k;
-							faceIndices[ i + 1 ] = k;
-							faceIndices[ i + 2 ] = 0;
-						}
-						mesh.getFaces().addAll( faceIndices );
-						final PhongMaterial material = new PhongMaterial();
-						material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
-						material.setSpecularPower( 50 );
-						material.diffuseColorProperty().bind( color );
-						final MeshView mv = new MeshView( mesh );
-						mv.setOpacity( 1.0 );
-						synchronized ( this.isVisible )
-						{
-							mv.visibleProperty().bind( this.isVisible );
-						}
-						mv.setCullFace( CullFace.NONE );
-						mv.setMaterial( material );
-						mv.setDrawMode( DrawMode.FILL );
-						if ( !Thread.interrupted() )
-							synchronized ( meshes )
-							{
-								meshes.put( key, mv );
-							}
-					}
-					catch ( final ExecutionException e )
-					{
-						LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-					}
-					catch ( final RuntimeException e )
-					{
-						LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
-						e.printStackTrace();
-						throw e;
-					}
-					finally
-					{
-						Thread.currentThread().setName( initialName );
-					}
-					return null;
-
-				} ) );
-			this.activeTasks.addAll( tasks );
+			tasks.stream().map( this.es::submit ).forEach( futures::add );
+			this.activeTasks.addAll( futures );
 		}
-		for ( final Future< Void > future : tasks )
+		for ( final Future< Void > future : futures )
 			try
 			{
 				future.get();
@@ -431,6 +449,21 @@ public class MeshGenerator< T >
 	public IntegerProperty scaleIndexProperty()
 	{
 		return this.scaleIndex;
+	}
+
+	public ObservableIntegerValue submittedTasksProperty()
+	{
+		return this.submittedTasks;
+	}
+
+	public ObservableIntegerValue completedTasksProperty()
+	{
+		return this.completedTasks;
+	}
+
+	public ObservableIntegerValue successfulTasksProperty()
+	{
+		return this.successfulTasks;
 	}
 
 }
