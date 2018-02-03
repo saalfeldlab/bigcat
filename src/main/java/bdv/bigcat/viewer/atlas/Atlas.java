@@ -35,6 +35,7 @@ import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
@@ -57,6 +58,7 @@ import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -65,6 +67,7 @@ import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.util.Colors;
 import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
@@ -72,7 +75,9 @@ import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -109,6 +114,9 @@ import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
@@ -121,6 +129,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 
 public class Atlas
 {
@@ -186,7 +195,9 @@ public class Atlas
 		{
 			generalPurposeExecutorService.invokeAll( Stream.generate( () -> ( Callable< Void > ) () -> null ).limit( 100 ).collect( Collectors.toList() ) );
 		}
-		catch ( final InterruptedException e )
+		catch (
+
+		final InterruptedException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -558,6 +569,58 @@ public class Atlas
 
 	}
 
+	public < I extends IntegerType< I > & NativeType< I > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final double[] resolution,
+			final double[] offset,
+			final long maxId )
+	{
+
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		addLabelSource( data, transform, maxId, "labels" );
+	}
+
+	public < I extends IntegerType< I > & NativeType< I > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final long maxId )
+	{
+		addLabelSource( data, new AffineTransform3D(), maxId, "labels" );
+	}
+
+	public < I extends NativeType< I > & IntegerType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final AffineTransform3D sourceTransform,
+			final long maxId,
+			final String name )
+	{
+		final I i = Util.getTypeFromInterval( data );
+		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( i );
+		v.setValid( true );
+		final RandomAccessibleInterval< V > convertedData = Converters.convert( data, ( s, t ) -> t.get().set( s ), v );
+		final RandomAccessibleInterval< I >[] sources = new RandomAccessibleInterval[] { data };
+		final RandomAccessibleInterval< V >[] converted = new RandomAccessibleInterval[] { convertedData };
+		final DataSource< I, V > source = new RandomAccessibleIntervalDataSource<>(
+				sources,
+				converted,
+				new AffineTransform3D[] { sourceTransform },
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				name );
+		final LocalIdService idService = new LocalIdService();
+		idService.invalidate( maxId );
+		addLabelSource(
+				source,
+				new FragmentSegmentAssignmentOnlyLocal(),
+				p -> p.get().getIntegerLong(),
+				null,
+				null,
+				null );
+	}
+
 	// TODO Is there a better bound for V than AbstractVolatileRealType? V
 	// extends Volatile< I > & IntegerType< V > did not work with
 	// VolatileUnsignedLongType
@@ -669,6 +732,49 @@ public class Atlas
 
 		sourceInfo.addState( spec, state );
 
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final double[] resolution,
+			final double[] offset,
+			final double min,
+			final double max )
+	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		System.out.println( "ADDING RAW SOURCE WITH TRANSFORM " + transform );
+		addRawSource( data, transform, min, max, Color.WHITE, "raw" );
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final double min,
+			final double max )
+	{
+		addRawSource( data, new AffineTransform3D(), min, max, Color.WHITE, "raw" );
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final AffineTransform3D sourceTransform,
+			final double min,
+			final double max,
+			final Color color,
+			final String name )
+	{
+		final RandomAccessibleInterval< T >[] sources = new RandomAccessibleInterval[] { data };
+		final DataSource< T, T > source = new RandomAccessibleIntervalDataSource<>(
+				sources,
+				sources,
+				new AffineTransform3D[] { sourceTransform },
+				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+				name );
+		addRawSource( source, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
