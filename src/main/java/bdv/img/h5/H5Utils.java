@@ -1,9 +1,18 @@
 package bdv.img.h5;
 
 import static bdv.img.hdf5.Util.reorder;
+import static net.imglib2.cache.img.AccessFlags.VOLATILE;
+import static net.imglib2.cache.img.PrimitiveType.BYTE;
+import static net.imglib2.cache.img.PrimitiveType.DOUBLE;
+import static net.imglib2.cache.img.PrimitiveType.FLOAT;
+import static net.imglib2.cache.img.PrimitiveType.INT;
+import static net.imglib2.cache.img.PrimitiveType.LONG;
+import static net.imglib2.cache.img.PrimitiveType.SHORT;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
@@ -14,9 +23,11 @@ import ch.systemsx.cisd.base.mdarray.MDDoubleArray;
 import ch.systemsx.cisd.base.mdarray.MDFloatArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
 import ch.systemsx.cisd.base.mdarray.MDShortArray;
+import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.HDF5IntStorageFeatures;
+import ch.systemsx.cisd.hdf5.HDF5StorageLayout;
 import ch.systemsx.cisd.hdf5.IHDF5ByteReader;
 import ch.systemsx.cisd.hdf5.IHDF5ByteWriter;
 import ch.systemsx.cisd.hdf5.IHDF5DoubleReader;
@@ -33,17 +44,44 @@ import gnu.trove.TLongCollection;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.Cursor;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.img.ArrayDataAccessFactory;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.LoadedCellCacheLoader;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
+import net.imglib2.img.basictypeaccess.array.DoubleArray;
+import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.basictypeaccess.array.LongArray;
+import net.imglib2.img.basictypeaccess.array.ShortArray;
+import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
+import net.imglib2.img.cell.Cell;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.img.cell.LazyCellImg;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.GenericByteType;
+import net.imglib2.type.numeric.integer.GenericIntType;
+import net.imglib2.type.numeric.integer.GenericLongType;
+import net.imglib2.type.numeric.integer.GenericShortType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
@@ -82,7 +120,6 @@ public class H5Utils
 			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], max[ d ] - offset[ d ] + 1 );
 	}
 
-
 	/**
 	 * Load an HDF5 float32 dataset into a {@link CellImg} of {@link FloatType}.
 	 *
@@ -90,7 +127,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -100,7 +137,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< FloatType, ?, ? > target = new CellImgFactory< FloatType >( cellDimensions ).create( dimensions, new FloatType() );
+		final CellImg< FloatType, ? > target = new CellImgFactory< FloatType >( cellDimensions ).create( dimensions, new FloatType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -137,13 +174,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< FloatType, ?, ? > target = loadFloat( reader, dataset, cellDimensions );
+		final CellImg< FloatType, ? > target = loadFloat( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -155,7 +192,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -163,15 +200,15 @@ public class H5Utils
 		return loadFloat( new File( filePath ), dataset, cellDimensions );
 	}
 
-
 	/**
-	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of
+	 * {@link DoubleType}.
 	 *
 	 * @param reader
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -181,7 +218,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< DoubleType, ?, ? > target = new CellImgFactory< DoubleType >( cellDimensions ).create( dimensions, new DoubleType() );
+		final CellImg< DoubleType, ? > target = new CellImgFactory< DoubleType >( cellDimensions ).create( dimensions, new DoubleType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -212,38 +249,39 @@ public class H5Utils
 	}
 
 	/**
-	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of
+	 * {@link DoubleType}.
 	 *
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< DoubleType, ?, ? > target = loadDouble( reader, dataset, cellDimensions );
+		final CellImg< DoubleType, ? > target = loadDouble( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
 
 	/**
-	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of
+	 * {@link DoubleType}.
 	 *
 	 * @param filePath
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		return loadDouble( new File( filePath ), dataset, cellDimensions );
 	}
-
 
 	/**
 	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
@@ -252,7 +290,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -262,7 +300,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< LongType, ?, ? > target = new CellImgFactory< LongType >( cellDimensions ).create( dimensions, new LongType() );
+		final CellImg< LongType, ? > target = new CellImgFactory< LongType >( cellDimensions ).create( dimensions, new LongType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -299,13 +337,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< LongType, ?, ? > target = loadUnsignedLong( reader, dataset, cellDimensions );
+		final CellImg< LongType, ? > target = loadUnsignedLong( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -317,7 +355,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -325,15 +363,15 @@ public class H5Utils
 		return loadUnsignedLong( new File( filePath ), dataset, cellDimensions );
 	}
 
-
 	/**
-	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of
+	 * {@link UnsignedShortType}.
 	 *
 	 * @param reader
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -343,7 +381,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< UnsignedShortType, ?, ? > target = new CellImgFactory< UnsignedShortType >( cellDimensions ).create( dimensions, new UnsignedShortType() );
+		final CellImg< UnsignedShortType, ? > target = new CellImgFactory< UnsignedShortType >( cellDimensions ).create( dimensions, new UnsignedShortType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -374,31 +412,33 @@ public class H5Utils
 	}
 
 	/**
-	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of
+	 * {@link UnsignedShortType}.
 	 *
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< UnsignedShortType, ?, ? > target = loadUnsignedShort( reader, dataset, cellDimensions );
+		final CellImg< UnsignedShortType, ? > target = loadUnsignedShort( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
 
 	/**
-	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of
+	 * {@link UnsignedShortType}.
 	 *
 	 * @param filePath
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -406,15 +446,15 @@ public class H5Utils
 		return loadUnsignedShort( new File( filePath ), dataset, cellDimensions );
 	}
 
-
 	/**
-	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of
+	 * {@link UnsignedByteType}.
 	 *
 	 * @param reader
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -424,7 +464,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< UnsignedByteType, ?, ? > target = new CellImgFactory< UnsignedByteType >( cellDimensions ).create( dimensions, new UnsignedByteType() );
+		final CellImg< UnsignedByteType, ? > target = new CellImgFactory< UnsignedByteType >( cellDimensions ).create( dimensions, new UnsignedByteType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -455,31 +495,33 @@ public class H5Utils
 	}
 
 	/**
-	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of
+	 * {@link UnsignedByteType}.
 	 *
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< UnsignedByteType, ?, ? > target = loadUnsignedByte( reader, dataset, cellDimensions );
+		final CellImg< UnsignedByteType, ? > target = loadUnsignedByte( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
 
 	/**
-	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of
+	 * {@link UnsignedByteType}.
 	 *
 	 * @param filePath
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -487,13 +529,14 @@ public class H5Utils
 		return loadUnsignedByte( new File( filePath ), dataset, cellDimensions );
 	}
 
-
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
 	 * uint8 dataset.
 	 *
-	 * @param source source
-	 * @param dimensions dimensions of the dataset if created new
+	 * @param source
+	 *            source
+	 * @param dimensions
+	 *            dimensions of the dataset if created new
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
@@ -515,13 +558,11 @@ public class H5Utils
 				reorder( cellDimensions ),
 				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 
-
 	}
 
-
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
-	 * uint8 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into
+	 * an HDF5 uint8 dataset.
 	 *
 	 * @param source
 	 * @param writer
@@ -576,8 +617,8 @@ public class H5Utils
 	}
 
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
-	 * uint8 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into
+	 * an HDF5 uint8 dataset.
 	 *
 	 * @param source
 	 * @param file
@@ -596,8 +637,8 @@ public class H5Utils
 	}
 
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
-	 * uint8 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into
+	 * an HDF5 uint8 dataset.
 	 *
 	 * @param source
 	 * @param filePAth
@@ -612,7 +653,6 @@ public class H5Utils
 	{
 		saveUnsignedByte( source, new File( filePath ), dataset, cellDimensions );
 	}
-
 
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link FloatType} into an HDF5
@@ -700,10 +740,9 @@ public class H5Utils
 		saveFloat( source, new File( filePath ), dataset, cellDimensions );
 	}
 
-
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
-	 * float64 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an
+	 * HDF5 float64 dataset.
 	 *
 	 * @param source
 	 * @param writer
@@ -750,8 +789,8 @@ public class H5Utils
 	}
 
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
-	 * float64 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an
+	 * HDF5 float64 dataset.
 	 *
 	 * @param source
 	 * @param file
@@ -770,8 +809,8 @@ public class H5Utils
 	}
 
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
-	 * float64 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an
+	 * HDF5 float64 dataset.
 	 *
 	 * @param source
 	 * @param filePAth
@@ -786,7 +825,6 @@ public class H5Utils
 	{
 		saveDouble( source, new File( filePath ), dataset, cellDimensions );
 	}
-
 
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link ShortType} into an HDF5
@@ -875,15 +913,14 @@ public class H5Utils
 		saveUnsignedShort( source, new File( filePath ), dataset, cellDimensions );
 	}
 
-
-
-
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
 	 * uint64 dataset.
 	 *
-	 * @param source source
-	 * @param dimensions dimensions of the dataset if created new
+	 * @param source
+	 *            source
+	 * @param dimensions
+	 *            dimensions of the dataset if created new
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
@@ -906,18 +943,18 @@ public class H5Utils
 				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 	}
 
-
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
 	 * uint64 dataset.
 	 *
-	 * @param source source
+	 * @param source
+	 *            source
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public void saveUnsignedLong(
-			final RandomAccessibleInterval< LongType > source,
+	static public <T extends IntegerType<T>> void saveUnsignedLong(
+			final RandomAccessibleInterval<T> source,
 			final IHDF5Writer writer,
 			final String dataset,
 			final int[] cellDimensions )
@@ -944,11 +981,11 @@ public class H5Utils
 		for ( int d = 0; d < n; )
 		{
 			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
-			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final RandomAccessibleInterval<T> sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;
-			for ( final LongType t : Views.flatIterable( sourceBlock ) )
-				targetCell.set( t.get(), i++ );
+			for ( final T t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( t.getIntegerLong(), i++ );
 
 			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
 
@@ -972,8 +1009,8 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public void saveUnsignedLong(
-			final RandomAccessibleInterval< LongType > source,
+	static public <T extends IntegerType<T>> void saveUnsignedLong(
+			final RandomAccessibleInterval<T> source,
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
@@ -992,8 +1029,8 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public void saveUnsignedLong(
-			final RandomAccessibleInterval< LongType > source,
+	static public <T extends IntegerType<T>> void saveUnsignedLong(
+			final RandomAccessibleInterval<T> source,
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -1004,8 +1041,10 @@ public class H5Utils
 	/**
 	 * Create anHDF5 int64 dataset.
 	 *
-	 * @param source source
-	 * @param dimensions dimensions of the dataset if created new
+	 * @param source
+	 *            source
+	 * @param dimensions
+	 *            dimensions of the dataset if created new
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
@@ -1028,12 +1067,12 @@ public class H5Utils
 				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 	}
 
-
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
 	 * int64 dataset.
 	 *
-	 * @param source source
+	 * @param source
+	 *            source
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
@@ -1123,16 +1162,15 @@ public class H5Utils
 		saveLong( source, new File( filePath ), dataset, cellDimensions );
 	}
 
-
-
-
 	/**
-	 * Save the combination of a single element {@link LabelMultiset} source
-	 * and a {@link LongType} overlay with transparent pixels into an HDF5
-	 * uint64 dataset.
+	 * Save the combination of a single element {@link LabelMultiset} source and
+	 * a {@link LongType} overlay with transparent pixels into an HDF5 uint64
+	 * dataset.
 	 *
-	 * @param labelMultisetSource the background
-	 * @param labelSource the overlay
+	 * @param labelMultisetSource
+	 *            the background
+	 * @param labelSource
+	 *            the overlay
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
@@ -1145,30 +1183,18 @@ public class H5Utils
 			final String dataset,
 			final int[] cellDimensions )
 	{
-		assert
-				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
-				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
+		assert labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
+				labelSource.numDimensions() == interval.numDimensions(): "input dimensions do not match";
 
 		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
 		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
 		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
-				new Converter< Pair< LabelMultisetType, LongType >, LongType >()
-				{
-					@Override
-					public void convert(
-							final Pair< LabelMultisetType, LongType > input,
-							final LongType output )
-					{
-						final long inputB = input.getB().get();
-						if ( inputB == Label.TRANSPARENT )
-						{
-							output.set( input.getA().entrySet().iterator().next().getElement().id() );
-						}
-						else
-						{
-							output.set( inputB );
-						}
-					}
+				( input, output ) -> {
+					final long inputB = input.getB().get();
+					if ( inputB == Label.TRANSPARENT )
+						output.set( input.getA().entrySet().iterator().next().getElement().id() );
+					else
+						output.set( inputB );
 				};
 
 		final RandomAccessibleInterval< LongType > source =
@@ -1181,14 +1207,18 @@ public class H5Utils
 	}
 
 	/**
-	 * Save the combination of a single element {@link LabelMultiset} source
-	 * and a fragment to segment assignment table and a {@link LongType}
-	 * overlay with transparent pixels into an HDF5 uint64 dataset.
+	 * Save the combination of a single element {@link LabelMultiset} source and
+	 * a fragment to segment assignment table and a {@link LongType} overlay
+	 * with transparent pixels into an HDF5 uint64 dataset.
 	 *
-	 * @param labelMultisetSource the background
-	 * @param labelSource the overlay
-	 * @param interval the interval to be saved
-	 * @param assignment fragment to segment assignment
+	 * @param labelMultisetSource
+	 *            the background
+	 * @param labelSource
+	 *            the overlay
+	 * @param interval
+	 *            the interval to be saved
+	 * @param assignment
+	 *            fragment to segment assignment
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
@@ -1202,30 +1232,18 @@ public class H5Utils
 			final String dataset,
 			final int[] cellDimensions )
 	{
-		assert
-				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
-				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
+		assert labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
+				labelSource.numDimensions() == interval.numDimensions(): "input dimensions do not match";
 
 		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
 		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
 		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
-				new Converter< Pair< LabelMultisetType, LongType >, LongType >()
-				{
-					@Override
-					public void convert(
-							final Pair< LabelMultisetType, LongType > input,
-							final LongType output )
-					{
-						final long inputB = input.getB().get();
-						if ( inputB == Label.TRANSPARENT )
-						{
-							output.set( assignment.getSegment( input.getA().entrySet().iterator().next().getElement().id() ) );
-						}
-						else
-						{
-							output.set( assignment.getSegment( inputB ) );
-						}
-					}
+				( input, output ) -> {
+					final long inputB = input.getB().get();
+					if ( inputB == Label.TRANSPARENT )
+						output.set( assignment.getSegment( input.getA().entrySet().iterator().next().getElement().id() ) );
+					else
+						output.set( assignment.getSegment( inputB ) );
 				};
 
 		final RandomAccessibleInterval< LongType > source =
@@ -1273,8 +1291,8 @@ public class H5Utils
 		{
 			final MDLongArray block = uint64Reader.readMDArrayBlockWithOffset(
 					dataset,
-					new int[]{ 2, ( int )Math.min( blockSize, size - offset ) },
-					new long[]{ 0, offset } );
+					new int[] { 2, ( int ) Math.min( blockSize, size - offset ) },
+					new long[] { 0, offset } );
 
 			for ( int i = 0; i < block.size( 1 ); ++i )
 				lut.put( block.get( 0, i ), block.get( 1, i ) );
@@ -1338,22 +1356,22 @@ public class H5Utils
 		if ( !writer.exists( dataset ) )
 			uint64Writer.createMDArray(
 					dataset,
-					new long[]{ 2, lut.size() },
-					new int[]{ 2, blockSize },
+					new long[] { 2, lut.size() },
+					new int[] { 2, blockSize },
 					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 
 		final long[] keys = lut.keys();
 		for ( int offset = 0, i = 0; offset < lut.size(); offset += blockSize )
 		{
 			final int size = Math.min( blockSize, lut.size() - offset );
-			final MDLongArray targetCell = new MDLongArray( new int[]{ 2, size } );
+			final MDLongArray targetCell = new MDLongArray( new int[] { 2, size } );
 			for ( int j = 0; j < size; ++j, ++i )
 			{
 				targetCell.set( keys[ i ], 0, j );
 				targetCell.set( lut.get( keys[ i ] ), 1, j );
 			}
 
-			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[]{ 0, offset } );
+			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[] { 0, offset } );
 		}
 	}
 
@@ -1395,7 +1413,6 @@ public class H5Utils
 		writer.close();
 	}
 
-
 	/**
 	 * Load a long collection from an HDF5 dataset
 	 *
@@ -1428,8 +1445,8 @@ public class H5Utils
 		{
 			final MDLongArray block = uint64Reader.readMDArrayBlockWithOffset(
 					dataset,
-					new int[]{ ( int )Math.min( blockSize, size - offset ) },
-					new long[]{ offset } );
+					new int[] { ( int ) Math.min( blockSize, size - offset ) },
+					new long[] { offset } );
 
 			for ( int i = 0; i < block.size( 0 ); ++i )
 				collection.add( block.get( i ) );
@@ -1478,7 +1495,6 @@ public class H5Utils
 		return success;
 	}
 
-
 	/**
 	 * Save a long collection into an HDF5 uint64 dataset.
 	 *
@@ -1497,8 +1513,8 @@ public class H5Utils
 		if ( !writer.exists( dataset ) )
 			uint64Writer.createMDArray(
 					dataset,
-					new long[]{ longs.size() },
-					new int[]{ blockSize },
+					new long[] { longs.size() },
+					new int[] { blockSize },
 					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 
 		final TLongIterator iterator = longs.iterator();
@@ -1506,11 +1522,11 @@ public class H5Utils
 		for ( int offset = 0; offset < longs.size(); offset += blockSize )
 		{
 			final int size = Math.min( blockSize, longs.size() - offset );
-			final MDLongArray targetCell = new MDLongArray( new int[]{ size } );
+			final MDLongArray targetCell = new MDLongArray( new int[] { size } );
 			for ( int i = 0; i < size; ++i )
 				targetCell.set( iterator.next(), i );
 
-			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[]{ offset } );
+			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[] { offset } );
 		}
 	}
 
@@ -1574,77 +1590,70 @@ public class H5Utils
 
 		final HDF5DataTypeInformation attributeInfo = reader.object().getAttributeInformation( object, attribute );
 		final Class< ? > type = attributeInfo.tryGetJavaType();
-		System.out.println( "class: " + type );
 		if ( type.isAssignableFrom( long[].class ) )
-		{
 			if ( attributeInfo.isSigned() )
-				return ( T )( reader.int64().getArrayAttr( object, attribute ) );
+				return ( T ) reader.int64().getArrayAttr( object, attribute );
 			else
-				return ( T )( reader.uint64().getArrayAttr( object, attribute ) );
-		}
+				return ( T ) reader.uint64().getArrayAttr( object, attribute );
 		if ( type.isAssignableFrom( int[].class ) )
-		{
 			if ( attributeInfo.isSigned() )
-				return ( T )( reader.int32().getArrayAttr( object, attribute ) );
+				return ( T ) reader.int32().getArrayAttr( object, attribute );
 			else
-				return ( T )( reader.uint32().getArrayAttr( object, attribute ) );
-		}
+				return ( T ) reader.uint32().getArrayAttr( object, attribute );
 		if ( type.isAssignableFrom( short[].class ) )
-		{
 			if ( attributeInfo.isSigned() )
-				return ( T )( reader.int16().getArrayAttr( object, attribute ) );
+				return ( T ) reader.int16().getArrayAttr( object, attribute );
 			else
-				return ( T )( reader.uint16().getArrayAttr( object, attribute ) );
-		}
+				return ( T ) reader.uint16().getArrayAttr( object, attribute );
 		if ( type.isAssignableFrom( byte[].class ) )
 		{
 			if ( attributeInfo.isSigned() )
-				return ( T )( reader.int8().getArrayAttr( object, attribute ) );
+				return ( T ) reader.int8().getArrayAttr( object, attribute );
 			else
-				return ( T )( reader.uint8().getArrayAttr( object, attribute ) );
+				return ( T ) reader.uint8().getArrayAttr( object, attribute );
 		}
 		else if ( type.isAssignableFrom( double[].class ) )
-			return ( T )( reader.float64().getArrayAttr( object, attribute ) );
+			return ( T ) reader.float64().getArrayAttr( object, attribute );
 		else if ( type.isAssignableFrom( float[].class ) )
-			return ( T )( reader.float32().getArrayAttr( object, attribute ) );
+			return ( T ) reader.float32().getArrayAttr( object, attribute );
 		else if ( type.isAssignableFrom( String[].class ) )
-			return ( T )( reader.string().getArrayAttr( object, attribute ) );
+			return ( T ) reader.string().getArrayAttr( object, attribute );
 		if ( type.isAssignableFrom( long.class ) )
 		{
 			if ( attributeInfo.isSigned() )
-				return ( T )new Long( reader.int64().getAttr( object, attribute ) );
+				return ( T ) new Long( reader.int64().getAttr( object, attribute ) );
 			else
-				return ( T )new Long( reader.uint64().getAttr( object, attribute ) );
+				return ( T ) new Long( reader.uint64().getAttr( object, attribute ) );
 		}
 		else if ( type.isAssignableFrom( int.class ) )
 		{
 			if ( attributeInfo.isSigned() )
-				return ( T )new Integer( reader.int32().getAttr( object, attribute ) );
+				return ( T ) new Integer( reader.int32().getAttr( object, attribute ) );
 			else
-				return ( T )new Integer( reader.uint32().getAttr( object, attribute ) );
+				return ( T ) new Integer( reader.uint32().getAttr( object, attribute ) );
 		}
 		else if ( type.isAssignableFrom( short.class ) )
 		{
 			if ( attributeInfo.isSigned() )
-				return ( T )new Short( reader.int16().getAttr( object, attribute ) );
+				return ( T ) new Short( reader.int16().getAttr( object, attribute ) );
 			else
-				return ( T )new Short( reader.uint16().getAttr( object, attribute ) );
+				return ( T ) new Short( reader.uint16().getAttr( object, attribute ) );
 		}
 		else if ( type.isAssignableFrom( byte.class ) )
 		{
 			if ( attributeInfo.isSigned() )
-				return ( T )new Byte( reader.int8().getAttr( object, attribute ) );
+				return ( T ) new Byte( reader.int8().getAttr( object, attribute ) );
 			else
-				return ( T )new Byte( reader.uint8().getAttr( object, attribute ) );
+				return ( T ) new Byte( reader.uint8().getAttr( object, attribute ) );
 		}
 		else if ( type.isAssignableFrom( double.class ) )
-			return ( T )new Double( reader.float64().getAttr( object, attribute ) );
+			return ( T ) new Double( reader.float64().getAttr( object, attribute ) );
 		else if ( type.isAssignableFrom( float.class ) )
-			return ( T )new Double( reader.float32().getAttr( object, attribute ) );
+			return ( T ) new Double( reader.float32().getAttr( object, attribute ) );
 		else if ( type.isAssignableFrom( String.class ) )
-			return ( T )new String( reader.string().getAttr( object, attribute ) );
+			return ( T ) new String( reader.string().getAttr( object, attribute ) );
 
-		System.out.println( "Reading attributes of type " + attributeInfo + " not yet implemented." );
+		System.err.println( "Reading attributes of type " + attributeInfo + " not yet implemented." );
 		return null;
 	}
 
@@ -1665,6 +1674,27 @@ public class H5Utils
 		final T t = loadAttribute( reader, object, attribute );
 		reader.close();
 		return t;
+	}
+
+	static public void getAllDatasetPaths(
+			final IHDF5Reader reader,
+			final String object,
+			final List< String > paths )
+	{
+		List< String > allPaths = null;
+
+		if ( reader.object().isDataSet( object ) )
+		{
+			paths.add( object );
+		}
+		else
+		{
+			allPaths = reader.getGroupMembers( object );
+			for ( int j = 0; j < allPaths.size(); j++ )
+			{
+				getAllDatasetPaths( reader, object.concat( allPaths.get( j ) ).concat( "/" ), paths );
+			}
+		}
 	}
 
 	/**
@@ -1761,7 +1791,8 @@ public class H5Utils
 		if ( !writer.exists( object ) )
 			writer.object().createGroup( object );
 
-		// TODO Bug in JHDF5, does not save the value most of the time when using the non-deprecated method
+		// TODO Bug in JHDF5, does not save the value most of the time when
+		// using the non-deprecated method
 //		writer.uint64().setAttr( object, attribute, value );
 		writer.setLongAttribute( object, attribute, value );
 //		writer.file().flush();
@@ -1809,10 +1840,10 @@ public class H5Utils
 			final float[] value,
 			final File file,
 			final String dataset,
-			final String attribute)
+			final String attribute )
 	{
 		final IHDF5Writer writer = HDF5Factory.open( file );
-		writer.float32().setArrayAttr(dataset, attribute, value);
+		writer.float32().setArrayAttr( dataset, attribute, value );
 		writer.close();
 	}
 
@@ -1820,10 +1851,283 @@ public class H5Utils
 			final double[] value,
 			final File file,
 			final String dataset,
-			final String attribute)
+			final String attribute )
 	{
 		final IHDF5Writer writer = HDF5Factory.open( file );
-		writer.float64().setArrayAttr(dataset, attribute, value);
+		writer.float64().setArrayAttr( dataset, attribute, value );
 		writer.close();
+	}
+
+	/**
+	 * Create a {@link CellLoader} for use in a lazy {@link CachedCellImg}.
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param type
+	 * @param signed
+	 * @return
+	 */
+	public static < T extends NativeType< T > > CellLoader< T > createCellLoader(
+			final IHDF5Reader reader,
+			final String dataset,
+			final Class< ? > type,
+			final boolean signed )
+	{
+		if ( type.isAssignableFrom( byte.class ) )
+			return signed ? ( img ) -> {
+				final byte[] data = reader.int8().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericByteType< ? > > c = ( Cursor< ? extends GenericByteType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setByte( data[ i ] );
+			} : ( img ) -> {
+				final byte[] data = reader.uint8().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericByteType< ? > > c = ( Cursor< ? extends GenericByteType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setByte( data[ i ] );
+			};
+		else if ( type.isAssignableFrom( short.class ) )
+			return signed ? ( img ) -> {
+				final short[] data = reader.int16().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericShortType< ? > > c = ( Cursor< ? extends GenericShortType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setShort( data[ i ] );
+			} : ( img ) -> {
+				final short[] data = reader.uint16().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericShortType< ? > > c = ( Cursor< ? extends GenericShortType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setShort( data[ i ] );
+			};
+		else if ( type.isAssignableFrom( int.class ) )
+			return signed ? ( img ) -> {
+				final int[] data = reader.int32().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericIntType< ? > > c = ( Cursor< ? extends GenericIntType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setInt( data[ i ] );
+			} : ( img ) -> {
+				final int[] data = reader.uint32().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericIntType< ? > > c = ( Cursor< ? extends GenericIntType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setInt( data[ i ] );
+			};
+		else if ( type.isAssignableFrom( long.class ) )
+			return signed ? ( img ) -> {
+				final long[] data = reader.int64().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericLongType< ? > > c = ( Cursor< ? extends GenericLongType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setLong( data[ i ] );
+			} : ( img ) -> {
+				final long[] data = reader.uint64().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends GenericLongType< ? > > c = ( Cursor< ? extends GenericLongType< ? > > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().setLong( data[ i ] );
+			};
+		else if ( type.isAssignableFrom( float.class ) )
+			return ( img ) -> {
+				final float[] data = reader.float32().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends FloatType > c = ( Cursor< ? extends FloatType > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().set( data[ i ] );
+			};
+		else if ( type.isAssignableFrom( double.class ) )
+			return ( img ) -> {
+				final double[] data = reader.float64().readMDArrayBlockWithOffset(
+						dataset,
+						reorder( Intervals.dimensionsAsIntArray( img ) ),
+						reorder( Intervals.minAsLongArray( img ) ) ).getAsFlatArray();
+
+				@SuppressWarnings( "unchecked" )
+				final Cursor< ? extends DoubleType > c = ( Cursor< ? extends DoubleType > ) img.cursor();
+				for ( int i = 0; i < data.length; ++i )
+					c.next().set( data[ i ] );
+			};
+		else
+			return null;
+	}
+
+	/**
+	 * Open an HDF5 dataset as a memory cached {@link LazyCellImg}, using
+	 * {@link VolatileAccess} to enable wrapping as a volatile.
+	 *
+	 * @param n5
+	 * @param dataset
+	 * @return
+	 * @throws IOException
+	 */
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
+	public static final < T extends NativeType< T > > RandomAccessibleInterval< T > open(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int[] blockSize ) throws IOException
+	{
+		final Class< ? > dataType = reader.getDataSetInformation( dataset ).getTypeInformation().tryGetJavaType();
+		final boolean signed = reader.getDataSetInformation( dataset ).getTypeInformation().isSigned();
+
+		final CellLoader< T > loader = createCellLoader( reader, dataset, dataType, signed );
+
+		final long[] dimensions = reorder( reader.object().getDataSetInformation( dataset ).getDimensions() );
+
+		final CellGrid grid = new CellGrid( dimensions, blockSize );
+
+		final CachedCellImg< T, ? > img;
+		final T type;
+		final Cache< Long, Cell< ? > > cache;
+
+		if ( dataType.isAssignableFrom( byte.class ) )
+		{
+			if ( signed )
+			{
+				type = ( T ) new ByteType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< ByteArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( BYTE, VOLATILE ) );
+			}
+			else
+			{
+				type = ( T ) new UnsignedByteType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< ByteArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( BYTE, VOLATILE ) );
+			}
+		}
+		else if ( dataType.isAssignableFrom( short.class ) )
+		{
+			if ( signed )
+			{
+				type = ( T ) new ShortType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< ShortArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( SHORT, VOLATILE ) );
+			}
+			else
+			{
+				type = ( T ) new UnsignedShortType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< ShortArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( SHORT, VOLATILE ) );
+			}
+		}
+		else if ( dataType.isAssignableFrom( int.class ) )
+		{
+			if ( signed )
+			{
+				type = ( T ) new IntType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< IntArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( INT, VOLATILE ) );
+			}
+			else
+			{
+				type = ( T ) new UnsignedIntType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< IntArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( INT, VOLATILE ) );
+			}
+		}
+		else if ( dataType.isAssignableFrom( long.class ) )
+		{
+			if ( signed )
+			{
+				type = ( T ) new LongType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< LongArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( LONG, VOLATILE ) );
+			}
+			else
+			{
+				type = ( T ) new UnsignedLongType();
+				cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< LongArray > >()
+						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( LONG, VOLATILE ) );
+			}
+		}
+		else if ( dataType.isAssignableFrom( float.class ) )
+		{
+			type = ( T ) new FloatType();
+			cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< FloatArray > >()
+					.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+			img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( FLOAT, VOLATILE ) );
+		}
+		else if ( dataType.isAssignableFrom( double.class ) )
+		{
+			type = ( T ) new DoubleType();
+			cache = ( Cache ) new SoftRefLoaderCache< Long, Cell< DoubleArray > >()
+					.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+			img = new CachedCellImg( grid, type, cache, ArrayDataAccessFactory.get( DOUBLE, VOLATILE ) );
+		}
+		else
+			img = null;
+
+		return img;
+	}
+
+	/**
+	 * Open an HDF5 dataset as a memory cached {@link LazyCellImg}, using
+	 * {@link VolatileAccess} to enable wrapping as a volatile.
+	 *
+	 * @param n5
+	 * @param dataset
+	 * @return
+	 * @throws IOException
+	 */
+	public static final < T extends NativeType< T > > RandomAccessibleInterval< T > open(
+			final IHDF5Reader reader,
+			final String dataset ) throws IOException
+	{
+		final HDF5DataSetInformation datasetInfo = reader.object().getDataSetInformation( dataset );
+		final int[] blockSize;
+		if ( datasetInfo.getStorageLayout() == HDF5StorageLayout.CHUNKED )
+			blockSize = reorder( datasetInfo.tryGetChunkSizes() );
+		else
+		{
+			blockSize = new int[ datasetInfo.getRank() ];
+			Arrays.fill( blockSize, 32 );
+		}
+
+		return open( reader, dataset, blockSize );
 	}
 }

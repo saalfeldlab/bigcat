@@ -20,7 +20,7 @@ public class LabelMultisetEntryList
 	/**
 	 * doesn't create underlying data array
 	 */
-	protected LabelMultisetEntryList()
+	public LabelMultisetEntryList()
 	{
 		super( LabelMultisetEntry.type );
 	}
