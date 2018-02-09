@@ -135,16 +135,15 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected void mergeFragmentsImpl( final long... fragments )
 	{
-		for ( int i = 0; i < fragments.length; ++i )
+		if ( fragments.length < 2 )
+			return;
+		final long id1 = fragments[ 0 ];
+		for ( int k = 1; k < fragments.length; ++k )
 		{
-			final long id1 = fragments[ i ];
-			for ( int k = i + 1; k < fragments.length; ++k )
-			{
-				final long id2 = fragments[ k ];
-				final long seg1 = getSegment( id1 );
-				final long seg2 = getSegment( id2 );
-				mergeSegmentsImpl( seg1, seg2 );
-			}
+			final long id2 = fragments[ k ];
+			final long seg1 = getSegment( id1 );
+			final long seg2 = getSegment( id2 );
+			mergeSegmentsImpl( seg1, seg2 );
 		}
 	}
 
