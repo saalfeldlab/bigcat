@@ -79,15 +79,20 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final TLongHashSet fragments2 = getFragments( assignTo );
 		final TLongHashSet fragments = new TLongHashSet();
 
+		LOG.debug( "Assigning {} from {} to {} ({}}", fragments1, assignFrom, assignTo, fragments2 );
 		fragments.addAll( fragments1 );
 		fragments.addAll( fragments2 );
 
+		LOG.debug( "Maps before: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
 		fragments1.forEach( fragmentId -> {
 			fragmentToSegmentMap.put( fragmentId, assignTo );
 			return true;
 		} );
 		segmentToFragmentsMap.put( assignTo, fragments );
 		segmentToFragmentsMap.remove( assignFrom );
+
+		LOG.debug( "Maps after: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
+
 	}
 
 	@Override
@@ -96,6 +101,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		if ( segmentId1 == segmentId2 )
 			return;
 
+		LOG.debug( "Merging segments {} and {}", segmentId1, segmentId2 );
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
 	}
 
