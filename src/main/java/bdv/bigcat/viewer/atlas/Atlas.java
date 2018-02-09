@@ -599,6 +599,8 @@ public class Atlas
 	{
 		final I i = Util.getTypeFromInterval( data );
 		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( i );
+		if ( v == null )
+			throw new RuntimeException( "Was not able to get volatile type for type: " + i.getClass() );
 		v.setValid( true );
 		final RandomAccessibleInterval< V > convertedData = Converters.convert( data, ( s, t ) -> t.get().set( s ), v );
 		final RandomAccessibleInterval< I >[] sources = new RandomAccessibleInterval[] { data };
