@@ -45,13 +45,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long id;
 		final long segmentId = fragmentToSegmentMap.get( fragmentId );
 		if ( segmentId == fragmentToSegmentMap.getNoEntryValue() )
-		{
 			id = fragmentId;
-			fragmentToSegmentMap.put( fragmentId, id );
-			final TLongHashSet set = new TLongHashSet();
-			set.add( fragmentId );
-			segmentToFragmentsMap.put( id, set );
-		}
 		else
 			id = segmentId;
 		return id;
@@ -60,13 +54,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	public synchronized TLongHashSet getFragments( final long segmentId )
 	{
-		if ( !segmentToFragmentsMap.contains( segmentId ) )
-		{
-			segmentToFragmentsMap.put( segmentId, new TLongHashSet( new long[] { segmentId } ) );
-			fragmentToSegmentMap.put( segmentId, segmentId );
-		}
 		final TLongHashSet fragments = segmentToFragmentsMap.get( segmentId );
-		return fragments;
+		return fragments == null ? new TLongHashSet( new long[] { segmentId } ) : fragments;
 	}
 
 	@Override
