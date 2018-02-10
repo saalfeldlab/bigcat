@@ -17,6 +17,7 @@
 	<description>Collaborative volume annotation and segmentation with BigDataViewer</description>
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
+		<scijava.jvm.build.version>1.8.0-101</scijava.jvm.build.version>
 	</properties>
 
 	<profiles>
