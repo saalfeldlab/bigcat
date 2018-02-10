@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.IntegerProperty;

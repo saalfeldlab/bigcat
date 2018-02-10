@@ -21,13 +21,13 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.AbstractState;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 
@@ -49,6 +49,8 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	final static protected double[] bs = new double[] { 0, 0, 0, 1, 1, 1, 0 };
 
+	private static final int ZERO = 0x00000000;
+
 	protected long seed = 0;
 
 	protected int alpha = 0x20000000;
@@ -61,15 +63,22 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected final SelectedIds highlights;
 
-	protected final FragmentSegmentAssignment assignment;
+	protected final FragmentSegmentAssignmentState< ? > assignment;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
+	private TLongHashSet activeFragments;
+
+	private TLongHashSet activeSegments;
+
+	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
+		this.assignment.addListener( this::setActiveFragmentsAndSegments );
+		this.highlights.addListener( this::setActiveFragmentsAndSegments );
+		setActiveFragmentsAndSegments();
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -125,7 +134,7 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 	@Override
 	public int argb( final long id )
 	{
-		return argbImpl( id, colorFromSegmentId.get() );
+		return id == Label.TRANSPARENT ? ZERO : argbImpl( id, colorFromSegmentId.get() );
 	}
 
 	protected abstract int argbImpl( long id, boolean colorFromSegmentId );
@@ -243,4 +252,17 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 	{
 		return this.colorFromSegmentId;
 	}
+
+	private final void setActiveFragmentsAndSegments()
+	{
+		final TLongHashSet activeFragments = new TLongHashSet( this.highlights.getActiveIds() );
+		final TLongHashSet activeSegments = new TLongHashSet();
+		activeFragments.forEach( id -> {
+			activeSegments.add( this.assignment.getSegment( id ) );
+			return true;
+		} );
+		this.activeFragments = activeFragments;
+		this.activeSegments = activeSegments;
+	}
+
 }

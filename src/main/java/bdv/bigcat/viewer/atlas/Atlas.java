@@ -64,6 +64,7 @@ import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.SelectedSegments;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -339,7 +340,7 @@ public class Atlas
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) || keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
 				toggleSourcesTabs();
 				event.consume();
@@ -386,7 +387,7 @@ public class Atlas
 	public void start( final Stage primaryStage, final String title ) throws InterruptedException
 	{
 
-		final Scene scene = new Scene( this.root, 800, 600 );
+		final Scene scene = new Scene( this.root, 1280 - 32, 720 - 48 );
 
 		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
