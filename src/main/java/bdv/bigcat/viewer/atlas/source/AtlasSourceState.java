@@ -23,7 +23,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.scene.paint.Color;
+import javafx.beans.value.ObservableBooleanValue;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
@@ -57,43 +57,53 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		this.name.set( dataSource.getName() );
 	}
 
-	private final ObjectProperty< DataSource< D, T > > dataSource = new SimpleObjectProperty<>();
+	private final BooleanProperty stateChanged = new SimpleBooleanProperty();
+	{
+		stateChanged.addListener( ( obs, oldv, newv ) -> stateChanged.set( false ) );
+	}
 
-	private final ObjectProperty< Converter< T, ARGBType > > converter = new SimpleObjectProperty<>();
+	private final ObjectProperty< DataSource< D, T > > dataSource = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< Composite< ARGBType, ARGBType > > composite = new SimpleObjectProperty<>();
+	private final ObjectProperty< Converter< T, ARGBType > > converter = stateChangingObjectProperty( stateChanged );
 
-	private final BooleanProperty visible = new SimpleBooleanProperty();
+	private final ObjectProperty< Composite< ARGBType, ARGBType > > composite = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< TYPE > type = new SimpleObjectProperty<>();
+	private final BooleanProperty visible = stateChangingBooleanProperty( stateChanged );
 
-	private final ObjectProperty< Function< D, Converter< D, BoolType > > > maskGenerator = new SimpleObjectProperty<>();
+	private final ObjectProperty< TYPE > type = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< MaskedSource< ?, ? > > maskedSource = new SimpleObjectProperty<>();
+	private final ObjectProperty< Function< D, Converter< D, BoolType > > > maskGenerator = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< FragmentSegmentAssignmentState< ? > > assignment = new SimpleObjectProperty<>();
+	private final ObjectProperty< MaskedSource< ?, ? > > maskedSource = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< ToIdConverter > toIdConverter = new SimpleObjectProperty<>();
+	private final ObjectProperty< FragmentSegmentAssignmentState< ? > > assignment = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< ARGBStream > stream = new SimpleObjectProperty();
+	private final ObjectProperty< ToIdConverter > toIdConverter = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< SelectedIds > selectedIds = new SimpleObjectProperty<>();
+	private final ObjectProperty< ARGBStream > stream = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< IdService > idService = new SimpleObjectProperty<>();
+	private final ObjectProperty< SelectedIds > selectedIds = stateChangingObjectProperty( stateChanged );
 
-	private final DoubleProperty selectionMin = new SimpleDoubleProperty( Double.NaN );
+	private final ObjectProperty< IdService > idService = stateChangingObjectProperty( stateChanged );
 
-	private final DoubleProperty selectionMax = new SimpleDoubleProperty( Double.NaN );
+	private final DoubleProperty selectionMin = stateChangingDoubleProperty( stateChanged );
 
-	private final StringProperty name = new SimpleStringProperty();
+	private final DoubleProperty selectionMax = stateChangingDoubleProperty( stateChanged );
 
-	private final ObjectProperty< Cache< Long, Interval[] >[] > blockListCache = new SimpleObjectProperty<>( null );
+	private final StringProperty name = stateChangingStringProperty( stateChanged );
 
-	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCache = new SimpleObjectProperty<>( null );
+	private final ObjectProperty< Cache< Long, Interval[] >[] > blockListCache = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< MeshManager > meshManager = new SimpleObjectProperty<>( null );
+	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCache = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< MeshInfos > meshInfos = new SimpleObjectProperty<>( null );
+	private final ObjectProperty< MeshManager > meshManager = stateChangingObjectProperty( stateChanged );
+
+	private final ObjectProperty< MeshInfos > meshInfos = stateChangingObjectProperty( stateChanged );
+
+	public ObservableBooleanValue stateChanged()
+	{
+		return this.stateChanged;
+	}
 
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
@@ -154,16 +164,6 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	}
 
-//	public static class LabelSourceState< T extends Type< T >, D extends Type< D > > extends AtlasSourceState< T, D >
-//	{
-//
-//		public LabelSourceState( final DataSource< D, T > dataSource, final Converter< T, ARGBType > converter )
-//		{
-//			super.dataSource.set( dataSource );
-//			typeProperty().set( TYPE.RAW );
-//			setConverter( converter );
-//		}
-
 	public ObjectProperty< FragmentSegmentAssignmentState< ? > > assignmentProperty()
 	{
 		return this.assignment;
@@ -188,27 +188,6 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	{
 		return this.idService;
 	}
-//	}
-
-//	public static class RawSourceState< T extends RealType< T >, D extends Type< D > > extends AtlasSourceState< T, D >
-//	{
-
-//		public RawSourceState( final DataSource< D, T > dataSource, final double min, final double max )
-//		{
-//			final RealARGBColorConverter< T > conv = new InvertingARGBColorConverter<>( min, max );
-//			this.selectionMin.addListener( ( obs, oldv, newv ) -> this.min.set( this.min.get() < newv.doubleValue() ? newv.doubleValue() : this.min.get() ) );
-//			this.selectionMax.addListener( ( obs, oldv, newv ) -> this.max.set( this.max.get() > newv.doubleValue() ? newv.doubleValue() : this.max.get() ) );
-//			this.selectionMin.set( min );
-//			this.selectionMax.set( max );
-//			this.minProperty().addListener( ( obs, oldv, newv ) -> conv.setMin( newv.doubleValue() ) );
-//			this.maxProperty().addListener( ( obs, oldv, newv ) -> conv.setMax( newv.doubleValue() ) );
-//			this.minProperty().set( min );
-//			this.maxProperty().set( max );
-//			this.colorProperty().addListener( ( obs, oldv, newv ) -> conv.setColor( toARGBType( newv ) ) );
-//			setConverter( conv );
-//			super.dataSource.set( dataSource );
-//			typeProperty().set( TYPE.RAW );
-//		}
 
 	public DoubleProperty selectionMinProperty()
 	{
@@ -245,13 +224,37 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.meshInfos;
 	}
 
-	private static ARGBType toARGBType( final Color color )
+	private static < T > ObjectProperty< T > stateChangingObjectProperty( final BooleanProperty stateChanged )
 	{
-		return new ARGBType(
-				( int ) ( color.getOpacity() * 255 + 0.5 ) << 24 |
-						( int ) ( color.getRed() * 255 + 0.5 ) << 16 |
-						( int ) ( color.getGreen() * 255 + 0.5 ) << 8 |
-						( int ) ( color.getBlue() * 255 + 0.5 ) << 0 );
+		final ObjectProperty< T > property = new SimpleObjectProperty<>();
+		property.addListener( ( obs, oldv, newv ) -> stateChanged.set( true ) );
+		return property;
+	}
+
+	private static DoubleProperty stateChangingDoubleProperty( final BooleanProperty stateChanged )
+	{
+		return stateChangingDoubleProperty( stateChanged, Double.NaN );
+	}
+
+	private static DoubleProperty stateChangingDoubleProperty( final BooleanProperty stateChanged, final double value )
+	{
+		final DoubleProperty property = new SimpleDoubleProperty();
+		property.addListener( ( obs, oldv, newv ) -> stateChanged.set( true ) );
+		return property;
+	}
+
+	private static BooleanProperty stateChangingBooleanProperty( final BooleanProperty stateChanged )
+	{
+		final SimpleBooleanProperty property = new SimpleBooleanProperty();
+		property.addListener( ( obs, oldv, newv ) -> stateChanged.set( true ) );
+		return property;
+	}
+
+	private static StringProperty stateChangingStringProperty( final BooleanProperty stateChanged )
+	{
+		final SimpleStringProperty property = new SimpleStringProperty();
+		property.addListener( ( obs, oldv, newv ) -> stateChanged.set( true ) );
+		return property;
 	}
 
 }

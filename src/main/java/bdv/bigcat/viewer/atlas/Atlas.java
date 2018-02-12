@@ -45,9 +45,9 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
-import bdv.bigcat.viewer.atlas.source.SourceTabs;
+import bdv.bigcat.viewer.atlas.ui.ResizeOnLeftSide;
+import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -64,7 +64,6 @@ import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.SelectedSegments;
-import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -231,7 +230,7 @@ public class Atlas
 
 		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
 
-		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
+		sourcesAndSettings = new VBox( sourceTabs.get(), new TitledPane( "Settings", settingsNode ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 

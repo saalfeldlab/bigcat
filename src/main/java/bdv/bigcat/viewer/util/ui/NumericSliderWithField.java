@@ -1,6 +1,6 @@
 package bdv.bigcat.viewer.util.ui;
 
-import bdv.bigcat.viewer.atlas.source.DoubleStringFormatter;
+import bdv.bigcat.viewer.atlas.ui.DoubleStringFormatter;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;

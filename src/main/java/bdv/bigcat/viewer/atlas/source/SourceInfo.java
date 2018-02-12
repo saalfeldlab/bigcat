@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas.source;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -17,14 +18,17 @@ import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
@@ -74,6 +78,23 @@ public class SourceInfo
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = FXCollections.observableHashMap();
 
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > compositesReadOnly = FXCollections.unmodifiableObservableMap( composites );
+
+	private final ObservableList< Source< ? > > removedSources = FXCollections.observableArrayList();
+
+	private final ObservableList< Source< ? > > unmodifiableRemovedSources = FXCollections.unmodifiableObservableList( removedSources );
+	{
+		removedSources.addListener( ( ListChangeListener< Source< ? > > ) change -> removedSources.clear() );
+	}
+
+	private final BooleanProperty anyStateChanged = new SimpleBooleanProperty();
+	{
+		this.states.addListener( ( MapChangeListener< Source< ? >, AtlasSourceState< ?, ? > > ) change -> {
+			anyStateChanged.unbind();
+			anyStateChanged.set( true );
+			final BooleanProperty[] stateChanged = this.states.values().stream().map( AtlasSourceState::stateChanged ).toArray( BooleanProperty[]::new );
+			anyStateChanged.bind( Bindings.createBooleanBinding( () -> ( Arrays.stream( stateChanged ).filter( abc -> abc.get() ).count() > 0 ), stateChanged ) );
+		} );
+	}
 
 	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > makeRawSourceState(
 			final DataSource< D, T > source,
@@ -156,6 +177,7 @@ public class SourceInfo
 		this.sources.remove( source );
 		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
 		this.composites.remove( source );
+		this.removedSources.add( source );
 	}
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
@@ -294,6 +316,16 @@ public class SourceInfo
 	public ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites()
 	{
 		return this.compositesReadOnly;
+	}
+
+	public ObservableList< Source< ? > > removedSourcesTracker()
+	{
+		return this.removedSources;
+	}
+
+	public ObservableBooleanValue anyStateChanged()
+	{
+		return this.anyStateChanged;
 	}
 
 }

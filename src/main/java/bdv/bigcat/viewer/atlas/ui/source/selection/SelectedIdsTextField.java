@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.atlas.source;
+package bdv.bigcat.viewer.atlas.ui.source.selection;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -8,9 +8,10 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.state.SelectedIds;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 
@@ -21,15 +22,15 @@ public class SelectedIdsTextField
 
 	private final TextField field = new TextField();
 
-	public SelectedIdsTextField( final SelectedIds selection )
+	public SelectedIdsTextField( final ObservableList< Long > selection )
 	{
 		super();
 
 		field.setPromptText( "Selected ids" );
 		field.setTooltip( new Tooltip( "Selected fragment ids" ) );
 
-		selection.addListener( () -> {
-			final long[] ids = selection.getActiveIds();
+		selection.addListener( ( ListChangeListener< Long > ) change -> {
+			final long[] ids = selection.stream().mapToLong( id -> id ).toArray();
 			final String text = String.join( ",", Arrays.stream( ids ).mapToObj( Long::toString ).toArray( String[]::new ) );
 			LOG.debug( "Setting text to {}", text );
 			field.setText( text );
@@ -40,7 +41,7 @@ public class SelectedIdsTextField
 				if ( isLegalString( newv ) )
 				{
 					final long[] textFieldSelection = toLongArray( newv );
-					final long[] currentSelection = selection.getActiveIds();
+					final long[] currentSelection = selection.stream().mapToLong( id -> id ).toArray();
 					Arrays.sort( currentSelection );
 					Arrays.sort( textFieldSelection );
 					if ( !Arrays.equals( textFieldSelection, currentSelection ) )
@@ -50,7 +51,7 @@ public class SelectedIdsTextField
 								Arrays.toString( currentSelection ), Arrays.toString( textFieldSelection ) );
 						Platform.runLater( () -> {
 							final int caretPosition = field.getCaretPosition();
-							selection.activate( textFieldSelection );
+							selection.setAll( Arrays.stream( textFieldSelection ).mapToObj( Long::new ).toArray( Long[]::new ) );
 							field.positionCaret( caretPosition );
 						} );
 					}
