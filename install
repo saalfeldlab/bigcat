@@ -1,0 +1,29 @@
+#!/bin/bash
+
+INSTALL_DIR=${1:-$(pwd)}
+
+echo "Installing into $INSTALL_DIR"
+
+mvn clean install
+mvn -Dmdep.outputFile=cp.txt -Dmdep.includeScope=runtime dependency:build-classpath
+
+MEM=$(cat /proc/meminfo | grep MemTotal | sed s/^MemTotal:\\\s*\\\|\\\s\\+[^\\\s]*$//g)
+MEM=$(($MEM/2/1024/1024))
+
+echo '#!/bin/bash' > bigcat
+echo '' >> bigcat
+echo 'JAR=$HOME/.m2/repository/sc/fiji/bigcat/0.0.4-SNAPSHOT/bigcat-0.0.4-SNAPSHOT.jar' >> bigcat
+echo 'java \' >> bigcat
+echo "  -Xmx${MEM}g \\" >> bigcat
+echo '  -XX:+UseConcMarkSweepGC \' >> bigcat
+echo -n '  -cp $JAR:' >> bigcat
+echo -n $(cat cp.txt) >> bigcat
+echo ' \' >> bigcat
+echo '  bdv.bigcat.BigCat $@' >> bigcat
+
+chmod a+x bigcat
+rm cp.txt
+
+mkdir -p $INSTALL_DIR
+mv -f bigcat $INSTALL_DIR/
+
