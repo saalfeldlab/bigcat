@@ -148,6 +148,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		initIdService( params );
 		initAssignments( params );
 		initLabels( params );
+		initMaxId( params );
 	}
 
 	/**
@@ -160,7 +161,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	protected void initRaw( final P params ) throws IOException
 	{
 		System.out.println( "Opening raw from " + params.inFile );
-		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
+		/* Open writable because HDF5 forces this file to be read only forEVER!!! otherwise */
+		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
 		/* raw pixels */
 		Arrays.fill( maxRawDimensions, 0 );
@@ -174,6 +176,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 			else
 				System.out.println( "no raw dataset '" + raw + "' found" );
 	}
+
 
 	/**
 	 * Load or initialize canvas
@@ -200,8 +203,28 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	}
 
 	/**
-	 * Initialize ID service, load max id from file or find max id in labels and
-	 * canvas.
+	 * Load labels and create label+canvas compositions.
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	@Override
+	protected void initLabels( final P params ) throws IOException
+	{
+		System.out.println( "Opening labels from " + params.inFileLabels );
+		/* Open writable because HDF5 forces this file to be read only forEVER!!! otherwise */
+		final IHDF5Reader reader = HDF5Factory.open( params.inFileLabels );
+
+		/* labels */
+		for ( final String label : params.labels )
+			if ( reader.exists( label ) )
+				readLabels( reader, label );
+		else
+				System.out.println( "no label dataset '" + label + "' found" );
+	}
+
+	/**
+	 * Initialize ID service.
 	 *
 	 * @param params
 	 * @throws IOException
@@ -211,7 +234,16 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	{
 		/* id */
 		idService = new LocalIdService();
+	}
 
+	/**
+	 * Load max id from file or find max id in labels and canvas.
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	protected void initMaxId( final P params ) throws IOException
+	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		long maxId = 0;
