@@ -12,6 +12,7 @@ import bdv.img.cache.VolatileGlobalCellCache;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import net.imglib2.Volatile;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 
 /**
@@ -28,13 +29,13 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V e
 
 	final protected double[] offset;
 
-	final static protected long[] readDimension( final IHDF5Reader reader, final String dataset )
+	final static public long[] readDimension( final IHDF5Reader reader, final String dataset )
 	{
 		final long[] h5dim = reader.object().getDimensions( dataset );
 		return new long[] { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
 	}
 
-	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
+	final static public double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
 		final double[] resolution;
 		if ( reader.object().hasAttribute( dataset, "resolution" ) )
@@ -48,7 +49,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V e
 		return resolution;
 	}
 
-	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
+	final static public double[] readOffset( final IHDF5Reader reader, final String dataset )
 	{
 		final double[] offset;
 		if ( reader.object().hasAttribute( dataset, "offset" ) )
@@ -84,6 +85,15 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V e
 				loader,
 				cache );
 		this.offset = offset;
+		/* offset mipmap transforms */
+		for ( int i = 0; i < resolutions.length; ++i )
+		{
+			final AffineTransform3D mipmapTransform = mipmapTransforms[ i ];
+			final double[] scaledResolution = resolutions[ i ];
+			mipmapTransform.set(offset[0] / scaledResolution[0] * resolution[0], 0, 3);
+			mipmapTransform.set(offset[1] / scaledResolution[1] * resolution[1], 1, 3);
+			mipmapTransform.set(offset[2] / scaledResolution[2] * resolution[2], 2, 3);
+		}
 	}
 
 	public AbstractH5SetupImageLoader(
