@@ -36,6 +36,7 @@ import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.Util;
 import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
+import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
@@ -194,7 +195,13 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 			canvas = H5Utils.loadUnsignedLong( reader, params.canvas, cellDimensions );
 		else
 		{
-			canvas = new CellImgFactory< LongType >( cellDimensions ).create( maxRawDimensions, new LongType() );
+			final long[] canvasDimensions;
+			if ( params.labels.size() > 0 )
+				canvasDimensions = AbstractH5SetupImageLoader.readDimension( reader, params.labels.get( 0 ) );
+			else
+				canvasDimensions = maxRawDimensions;
+
+			canvas = new CellImgFactory< LongType >( cellDimensions ).create( canvasDimensions, new LongType() );
 			for ( final LongType t : canvas )
 				t.set( Label.TRANSPARENT );
 		}
