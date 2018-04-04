@@ -48,10 +48,9 @@ public class LabelBrushController
 	final protected SelectionController selectionController;
 	final protected RealPoint labelLocation;
 	final protected BrushOverlay brushOverlay;
+	final protected AffineTransform3D viewerTransform = new AffineTransform3D();
 
 	final protected int[] labelsH5CellDimensions;
-
-	final int brushNormalAxis;
 
 	protected int brushRadius = 5;
 
@@ -88,8 +87,7 @@ public class LabelBrushController
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
 			final int[] labelsH5CellDimensions,
-			final InputTriggerConfig config,
-			final int brushNormalAxis )
+			final InputTriggerConfig config)
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -99,7 +97,6 @@ public class LabelBrushController
 		this.assignment = assignment;
 		this.selectionController = selectionController;
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
-		this.brushNormalAxis = brushNormalAxis;
 		brushOverlay = new BrushOverlay( viewer );
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "brush" );
 
@@ -111,19 +108,6 @@ public class LabelBrushController
 		new MoveBrush( "move brush", "SPACE" ).register();
 	}
 
-	public LabelBrushController(
-			final ViewerPanel viewer,
-			final RandomAccessibleInterval< LongType > labels,
-			final DirtyInterval dirtyLabelsInterval,
-			final AffineTransform3D labelTransform,
-			final FragmentSegmentAssignment assignment,
-			final SelectionController selectionController,
-			final int[] labelsH5CellDimensions,
-			final InputTriggerConfig config )
-	{
-		this( viewer, labels, dirtyLabelsInterval, labelTransform, assignment, selectionController, labelsH5CellDimensions, config, 2 );
-	}
-
 	private void setCoordinates( final int x, final int y )
 	{
 		labelLocation.setPosition( x, 0 );
@@ -133,6 +117,24 @@ public class LabelBrushController
 		viewer.displayToGlobalCoordinates( labelLocation );
 
 		labelTransform.applyInverse( labelLocation, labelLocation );
+	}
+
+	private int getNormalAxis()
+	{
+		viewer.getState().getViewerTransform( viewerTransform );
+		int normalAxis = 0;
+		final double absDotX = Math.abs( viewerTransform.get( 0, 2 ) );
+		final double absDotY = Math.abs( viewerTransform.get( 1, 2 ) );
+		final double absDotZ = Math.abs( viewerTransform.get( 2, 2 ) );
+		if ( absDotY > absDotX ) {
+			normalAxis = 1;
+			if ( absDotZ > absDotY )
+				normalAxis = 2;
+		}
+		else if ( absDotZ > absDotX )
+			normalAxis = 2;
+
+		return normalAxis;
 	}
 
 	private abstract class SelfRegisteringBehaviour implements Behaviour
@@ -166,16 +168,17 @@ public class LabelBrushController
 			super( name, defaultTriggers );
 		}
 
-		protected void paint( final RealLocalizable coords)
+		protected void paint(final RealLocalizable coords)
 		{
 			final AccessBoxRandomAccessible< LongType > accessBoxExtendedLabels = new AccessBoxRandomAccessible<>( extendedLabels );
-			final RandomAccessible< LongType > labelSource = Views.hyperSlice( accessBoxExtendedLabels, brushNormalAxis, Math.round( coords.getDoublePosition( 2 ) ) );
+			final int brushNormalAxis = getNormalAxis();
+			final RandomAccessible< LongType > labelSource = Views.hyperSlice( accessBoxExtendedLabels, brushNormalAxis, Math.round( coords.getDoublePosition( brushNormalAxis ) ) );
 
 			final Neighborhood< LongType > sphere =
 					HyperSphereNeighborhood.< LongType >factory().create(
 							new long[]{
 									Math.round( coords.getDoublePosition( brushNormalAxis == 0 ? 1 : 0 ) ),
-									Math.round( coords.getDoublePosition( brushNormalAxis == 2 ? 1 : 2 ) ) },
+									Math.round( coords.getDoublePosition( brushNormalAxis != 2 ? 2 : 1 ) ) },
 							Math.round( brushRadius / Affine3DHelpers.extractScale( labelTransform, brushNormalAxis == 0 ? 1 : 0 ) ),
 							labelSource.randomAccess() );
 
