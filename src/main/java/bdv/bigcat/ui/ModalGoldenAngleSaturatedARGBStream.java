@@ -55,6 +55,7 @@ public class ModalGoldenAngleSaturatedARGBStream extends GoldenAngleSaturatedARG
 		++mode;
 		if ( mode == 3 )
 			mode = 0;
+		clearCache();
 	}
 
 	@Override
@@ -63,12 +64,14 @@ public class ModalGoldenAngleSaturatedARGBStream extends GoldenAngleSaturatedARG
 		--mode;
 		if ( mode == -1 )
 			mode = 2;
+		clearCache();
 	}
 
 	@Override
 	public void setMode( final int value )
 	{
 		mode = value % 3;
+		clearCache();
 	}
 
 	@Override
@@ -80,13 +83,15 @@ public class ModalGoldenAngleSaturatedARGBStream extends GoldenAngleSaturatedARG
 	@Override
 	public int argb( final long fragmentId )
 	{
-		final long segmentId = assignment.getSegment( fragmentId );
+		int argb = fragmentARGBCache.get( fragmentId );
 
-		int argb = argbCache.get( segmentId );
 		if ( argb == 0x00000000 )
 		{
-			if ( mode == SELECTED_ONLY && segmentId != activeSegment );
-			else
+			final long segmentId = assignment.getSegment( fragmentId );
+
+			argb = segmentARGBCache.get( segmentId );
+
+			if ( argb == 0x00000000 )
 			{
 				double x = getDouble( seed + segmentId );
 				x *= 6.0;
@@ -101,17 +106,22 @@ public class ModalGoldenAngleSaturatedARGBStream extends GoldenAngleSaturatedARG
 
 				argb = argb( r, g, b, alpha );
 
-				if ( mode == HIDE_COMPLETE && completeSegments.contains( segmentId ) )
-					argb = argb & 0x00ffffff | invalidSegmentAlpha;
-				else if ( activeFragment == fragmentId )
-					argb = argb & 0x00ffffff | activeFragmentAlpha;
+				if ( ( mode == SELECTED_ONLY && segmentId != activeSegment ) || ( mode == HIDE_COMPLETE && completeSegments.contains( segmentId ) ) )
+					argb = argb & 0x00ffffff;
 				else if ( activeSegment == segmentId )
 					argb = argb & 0x00ffffff | activeSegmentAlpha;
-			}
 
-			synchronized ( argbCache )
+				synchronized ( segmentARGBCache )
+				{
+					segmentARGBCache.put( segmentId, argb );
+				}
+			}
+			if ( activeFragment == fragmentId && ( argb & 0xff000000 ) != 0 )
+				argb = argb & 0x00ffffff | activeFragmentAlpha;
+
+			synchronized ( fragmentARGBCache )
 			{
-				argbCache.put( segmentId, argb );
+				fragmentARGBCache.put( fragmentId, argb );
 			}
 		}
 

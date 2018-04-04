@@ -114,6 +114,7 @@ public class SelectionController
 	{
 		activeFragmentId = id;
 		colorStream.setActive( id );
+		colorStream.clearCache();
 		System.out.println( "activeID = " + activeFragmentId );
 	}
 
@@ -190,7 +191,6 @@ public class SelectionController
 			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			setActiveFragmentId( id );
-			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}
@@ -226,7 +226,6 @@ public class SelectionController
 			{
 				setActiveFragmentId( idService.next() );
 			}
-			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}
@@ -242,7 +241,6 @@ public class SelectionController
 		public void actionPerformed( final ActionEvent e )
 		{
 			colorStream.incSeed();
-			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}
@@ -258,7 +256,6 @@ public class SelectionController
 		public void actionPerformed( final ActionEvent e )
 		{
 			colorStream.decSeed();
-			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}

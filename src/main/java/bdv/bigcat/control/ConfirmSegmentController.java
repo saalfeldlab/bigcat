@@ -113,7 +113,6 @@ public class ConfirmSegmentController
 			synchronized ( viewer )
 			{
 				modeWheel.advance();
-				colorStream.clearCache();
 			}
 			viewer.requestRepaint();
 		}
@@ -132,7 +131,6 @@ public class ConfirmSegmentController
 			synchronized ( viewer )
 			{
 				modeWheel.regress();
-				colorStream.clearCache();
 			}
 			viewer.requestRepaint();
 		}

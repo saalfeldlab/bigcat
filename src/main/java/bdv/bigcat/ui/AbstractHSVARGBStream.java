@@ -39,11 +39,11 @@ abstract public class AbstractHSVARGBStream extends AbstractARGBStream
 		if ( fragmentId == Label.TRANSPARENT )
 			return 0;
 		final long segmentId = assignment.getSegment( fragmentId );
-		int argb = argbCache.get( segmentId );
+		int argb = fragmentARGBCache.get( segmentId );
 		if ( argb == 0x00000000 )
 		{
 			argb = id2argb( seed + segmentId );
-			argbCache.put( segmentId, argb );
+			fragmentARGBCache.put( segmentId, argb );
 		}
 		if ( activeFragment == fragmentId )
 			argb = argb & 0x00ffffff | activeFragmentAlpha;

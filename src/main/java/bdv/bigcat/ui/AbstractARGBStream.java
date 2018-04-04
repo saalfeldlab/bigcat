@@ -37,7 +37,6 @@ abstract public class AbstractARGBStream implements ARGBStream
 	protected int alpha = 0x20000000;
 	protected int activeFragmentAlpha = 0xd0000000;
 	protected int activeSegmentAlpha = 0x80000000;
-	protected int invalidSegmentAlpha = 0x00000000;
 	protected long activeFragment = 0l;
 	protected long activeSegment = 0l;
 
@@ -48,7 +47,12 @@ abstract public class AbstractARGBStream implements ARGBStream
 		this.assignment = assignment;
 	}
 
-	protected TLongIntHashMap argbCache = new TLongIntHashMap(
+	protected TLongIntHashMap fragmentARGBCache = new TLongIntHashMap(
+			Constants.DEFAULT_CAPACITY ,
+			Constants.DEFAULT_LOAD_FACTOR,
+			Label.TRANSPARENT,
+			0 );
+	protected TLongIntHashMap segmentARGBCache = new TLongIntHashMap(
 			Constants.DEFAULT_CAPACITY ,
 			Constants.DEFAULT_LOAD_FACTOR,
 			Label.TRANSPARENT,
@@ -69,6 +73,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void setSeed( final long seed )
 	{
 		this.seed = seed;
+		clearCache();
 	}
 
 	/**
@@ -77,6 +82,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void incSeed()
 	{
 		++seed;
+		clearCache();
 	}
 
 	/**
@@ -85,6 +91,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void decSeed()
 	{
 		--seed;
+		clearCache();
 	}
 
 	/**
@@ -94,6 +101,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	{
 		activeFragment = fragmentId;
 		activeSegment = assignment.getSegment( fragmentId );
+		clearCache();
 	}
 
 
@@ -105,6 +113,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void setAlpha( final int alpha )
 	{
 		this.alpha = alpha << 24;
+		clearCache();
 	}
 
 	/**
@@ -115,6 +124,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void setActiveFragmentAlpha( final int alpha )
 	{
 		this.activeFragmentAlpha = alpha << 24;
+		clearCache();
 	}
 
 	/**
@@ -125,10 +135,12 @@ abstract public class AbstractARGBStream implements ARGBStream
 	public void setActiveSegmentAlpha( final int alpha )
 	{
 		this.activeSegmentAlpha = alpha << 24;
+		clearCache();
 	}
 
 	public void clearCache()
 	{
-		argbCache.clear();
+		fragmentARGBCache.clear();
+		segmentARGBCache.clear();
 	}
 }

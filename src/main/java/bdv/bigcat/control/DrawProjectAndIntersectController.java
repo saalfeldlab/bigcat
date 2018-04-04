@@ -279,7 +279,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 		public void setActiveFragmentId( final long id )
 		{
-			colorStream.setActive( id );
 			selectionController.setActiveFragmentId( id );
 			updateCM();
 		}
@@ -290,7 +289,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 			synchronized ( viewer )
 			{
 				setActiveFragmentId( idService.next() );
-				colorStream.clearCache();
 			}
 			viewer.requestRepaint();
 		}

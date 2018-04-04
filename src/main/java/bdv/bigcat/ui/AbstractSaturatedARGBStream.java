@@ -43,7 +43,7 @@ abstract public class AbstractSaturatedARGBStream extends AbstractARGBStream
 	public int argb( final long fragmentId )
 	{
 		final long segmentId = assignment.getSegment( fragmentId );
-		int argb = argbCache.get( segmentId );
+		int argb = fragmentARGBCache.get( segmentId );
 		if ( argb == 0x00000000 )
 		{
 			double x = getDouble( seed + segmentId );
@@ -59,13 +59,13 @@ abstract public class AbstractSaturatedARGBStream extends AbstractARGBStream
 
 			argb = argb( r, g, b, alpha );
 
-			synchronized ( argbCache )
+			synchronized ( fragmentARGBCache )
 			{
-				argbCache.put( segmentId, argb );
+				fragmentARGBCache.put( segmentId, argb );
 			}
 		}
 		if ( Label.INVALID == segmentId )
-			argb = argb & 0x00ffffff | invalidSegmentAlpha;
+			argb = argb & 0x00ffffff;
 		else if ( activeFragment == fragmentId )
 			argb = argb & 0x00ffffff | activeFragmentAlpha;
 		else if ( activeSegment == segmentId )
