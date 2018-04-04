@@ -114,7 +114,6 @@ public class SelectionController
 	{
 		activeFragmentId = id;
 		colorStream.setActive( id );
-		colorStream.clearCache();
 		System.out.println( "activeID = " + activeFragmentId );
 	}
 
