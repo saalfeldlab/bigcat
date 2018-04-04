@@ -224,7 +224,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 
 		/* complete fragments */
 		completeSegments = new SegmentAssignment();
-		final TLongHashSet set = new TLongHashSet();
+		final TLongHashSet set = completeSegments.getAssignedSegments();
 		H5Utils.loadLongCollection( set, reader, params.completeSegments, 1024 );
 
 		/* color stream */

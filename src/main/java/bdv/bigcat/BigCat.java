@@ -588,6 +588,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 			annotationsController.saveAnnotations();
 			persistenceController.saveNextId();
 			persistenceController.saveFragmentSegmentAssignment();
+			persistenceController.saveCompleteSegmentsAssignment();
 			persistenceController.savePaintedLabels();
 		}
 		return reallyClose;
