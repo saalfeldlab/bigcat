@@ -22,9 +22,9 @@ import bdv.bigcat.control.ConfirmSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
-import bdv.bigcat.label.FragmentAssignment;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.LabelMultiSetIdPicker;
+import bdv.bigcat.label.SegmentAssignment;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
@@ -68,8 +68,8 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 		@Parameter( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
 		public String assignment = "/fragment_segment_lut";
 
-		@Parameter( names = { "--complete", "-f" }, description = "complete fragments" )
-		public String completeFragments = "/complete_fragments";
+		@Parameter( names = { "--complete", "-f" }, description = "complete segments" )
+		public String completeSegments = "/complete_segments";
 
 		public void init()
 		{
@@ -93,8 +93,8 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	/** fragment to segment assignment */
 	protected FragmentSegmentAssignment assignment;
 
-	/** complete fragments */
-	protected FragmentAssignment completeFragmentsAssignment;
+	/** complete segments */
+	protected SegmentAssignment completeSegments;
 
 	/** color generator for composition of loaded segments and canvas */
 	protected ModalGoldenAngleSaturatedARGBStream colorStream;
@@ -223,12 +223,12 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 			assignment.initLut( lut );
 
 		/* complete fragments */
-		completeFragmentsAssignment = new FragmentAssignment();
+		completeSegments = new SegmentAssignment();
 		final TLongHashSet set = new TLongHashSet();
-		H5Utils.loadLongCollection( set, reader, params.completeFragments, 1024 );
+		H5Utils.loadLongCollection( set, reader, params.completeSegments, 1024 );
 
 		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
+		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment, completeSegments );
 		colorStream.setAlpha( 0x20 );
 
 		reader.close();
@@ -338,6 +338,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 					bdv.getViewer(),
 					selectionController,
 					assignment,
+					completeSegments,
 					colorStream,
 					colorStream,
 					config,

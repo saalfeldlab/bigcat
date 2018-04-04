@@ -190,6 +190,7 @@ public class SelectionController
 			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			setActiveFragmentId( id );
+			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}
@@ -225,6 +226,7 @@ public class SelectionController
 			{
 				setActiveFragmentId( idService.next() );
 			}
+			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}

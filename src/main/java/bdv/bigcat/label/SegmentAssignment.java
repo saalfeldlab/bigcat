@@ -19,7 +19,7 @@ package bdv.bigcat.label;
 import gnu.trove.set.hash.TLongHashSet;
 
 /**
- * Assigns fragments to an arbitrary property.
+ * Assigns segments to an arbitrary property.
  *
  * TODO currently, this reproduces parts of the TLongSet interface which seems
  *   to make it a redundant implementation, however, I suspect this class to
@@ -28,27 +28,27 @@ import gnu.trove.set.hash.TLongHashSet;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class FragmentAssignment
+public class SegmentAssignment
 {
-	final private TLongHashSet fragments = new TLongHashSet();
+	final private TLongHashSet segments = new TLongHashSet();
 
-	public TLongHashSet getAssignedFragments()
+	public TLongHashSet getAssignedSegments()
 	{
-		return fragments;
+		return segments;
 	}
 
-	public void add( final long fragmentId )
+	public void add( final long segmentId )
 	{
-		fragments.add( fragmentId );
+		segments.add( segmentId );
 	}
 
-	public boolean remove( final long fragmentId )
+	public boolean remove( final long segmentId )
 	{
-		return fragments.remove( fragmentId );
+		return segments.remove( segmentId );
 	}
 
-	public boolean contains( final long fragmentId )
+	public boolean contains( final long segmentId )
 	{
-		return fragments.contains( fragmentId );
+		return segments.contains( segmentId );
 	}
 }

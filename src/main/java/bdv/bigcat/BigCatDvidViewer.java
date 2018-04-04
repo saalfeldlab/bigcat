@@ -20,9 +20,9 @@ import bdv.bigcat.control.ConfirmSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
-import bdv.bigcat.label.FragmentAssignment;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.LabelMultiSetIdPicker;
+import bdv.bigcat.label.SegmentAssignment;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -126,11 +126,11 @@ public class BigCatDvidViewer extends BigCatViewer< BigCatDvidViewer.Parameters 
 		/* fragment segment assignment */
 		assignment = new FragmentSegmentAssignment( idService );
 
-		/* complete fragments */
-		completeFragmentsAssignment = new FragmentAssignment();
+		/* complete segments */
+		completeSegments = new SegmentAssignment();
 
 		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
+		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment, completeSegments );
 		colorStream.setAlpha( 0x20 );
 	}
 
@@ -265,6 +265,7 @@ public class BigCatDvidViewer extends BigCatViewer< BigCatDvidViewer.Parameters 
 					bdv.getViewer(),
 					selectionController,
 					assignment,
+					completeSegments,
 					colorStream,
 					colorStream,
 					config,

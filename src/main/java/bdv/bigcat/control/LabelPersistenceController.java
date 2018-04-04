@@ -12,7 +12,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.AbstractNamedAction;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 
-import bdv.bigcat.label.FragmentAssignment;
+import bdv.bigcat.label.SegmentAssignment;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.util.DirtyInterval;
 import bdv.img.h5.H5Utils;
@@ -37,7 +37,7 @@ public class LabelPersistenceController
 	final protected double[] labelOffset;
 	final protected DirtyInterval dirtyLabelSourceInterval;
 	final protected FragmentSegmentAssignment assignment;
-	final protected FragmentAssignment completeFragments;
+	final protected SegmentAssignment completeFragments;
 	final protected IdService idService;
 
 	final protected String h5Path;
@@ -60,7 +60,7 @@ public class LabelPersistenceController
 			final double[] labelOffset,
 			final DirtyInterval dirtyLabelSourceInterval,
 			final FragmentSegmentAssignment assignment,
-			final FragmentAssignment completeFragments,
+			final SegmentAssignment completeFragments,
 			final IdService idService,
 			final String h5Path,
 			final String paintedLabelsDataset,
@@ -138,7 +138,7 @@ public class LabelPersistenceController
 	{
 		System.out.println( "Saving complete fragments " + h5Path + ":" + completeFragmentsDataset );
 		H5Utils.saveLongCollection(
-				completeFragments.getAssignedFragments(),
+				completeFragments.getAssignedSegments(),
 				h5Path,
 				completeFragmentsDataset,
 				1024 );

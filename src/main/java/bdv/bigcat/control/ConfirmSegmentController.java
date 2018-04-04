@@ -11,8 +11,8 @@ import org.scijava.ui.behaviour.util.AbstractNamedAction;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.label.SegmentAssignment ;
 import bdv.bigcat.ui.AbstractARGBStream;
-import bdv.labels.labelset.Label;
 import bdv.viewer.ViewerPanel;
 
 /**
@@ -25,6 +25,7 @@ public class ConfirmSegmentController
 	final protected ViewerPanel viewer;
 	final protected SelectionController selectionController;
 	final protected FragmentSegmentAssignment assignment;
+	final protected SegmentAssignment completeSegments;
 	final protected AbstractARGBStream colorStream;
 	final protected Wheel modeWheel;
 
@@ -37,6 +38,7 @@ public class ConfirmSegmentController
 			final ViewerPanel viewer,
 			final SelectionController selectionController,
 			final FragmentSegmentAssignment assignment,
+			final SegmentAssignment completeSegments,
 			final AbstractARGBStream colorStream,
 			final Wheel modeWheel,
 			final InputTriggerConfig config,
@@ -45,6 +47,7 @@ public class ConfirmSegmentController
 		this.viewer = viewer;
 		this.selectionController = selectionController;
 		this.assignment = assignment;
+		this.completeSegments = completeSegments;
 		this.colorStream = colorStream;
 		this.modeWheel = modeWheel;
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "confirm segment" );
@@ -84,13 +87,15 @@ public class ConfirmSegmentController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			long activeFragmentId;
+			long activeSegmentId;
 			synchronized ( viewer )
 			{
-				activeFragmentId = selectionController.getActiveFragmentId();
-				assignment.assignFragments( assignment.getSegment( activeFragmentId ), Label.INVALID );
+				final long activeFragmentId = selectionController.getActiveFragmentId();
+				activeSegmentId = assignment.getSegment( activeFragmentId );
+				completeSegments.add( activeSegmentId );
+				colorStream.clearCache();
 			}
-			viewer.showMessage( "confirmed fragment " + activeFragmentId );
+			viewer.showMessage( "completed segment " + activeSegmentId );
 			viewer.requestRepaint();
 		}
 	}

@@ -347,6 +347,7 @@ public class AgglomerationClientController
 				/* local */
 				assignment.detachFragment( id );
 				selectionController.setActiveFragmentId( id );
+
 				viewer.requestRepaint();
 
 				/* solver */

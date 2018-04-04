@@ -290,6 +290,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 			synchronized ( viewer )
 			{
 				setActiveFragmentId( idService.next() );
+				colorStream.clearCache();
 			}
 			viewer.requestRepaint();
 		}
