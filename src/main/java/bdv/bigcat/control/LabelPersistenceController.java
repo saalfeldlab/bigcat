@@ -89,8 +89,8 @@ public class LabelPersistenceController
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "persistence" );
 
 		new SaveAssignmentsAndPaintedLabels( "save fragment segment assignment and painted labels", "ctrl S" ).register();
-//		new SaveAssignedMergedLabels( "save assigned merged labels", "ctrl shift S" ).register();
-		new SaveMergedLabels( "save merged labels", "ctrl shift S" ).register();
+		new SaveAssignedMergedLabels( "save assigned merged labels", "ctrl shift S" ).register();
+//		new SaveMergedLabels( "save merged labels", "ctrl shift S" ).register();
 
 		inputActionBindings.addActionMap( "persistence", ksActionMap );
 		inputActionBindings.addInputMap( "persistence", ksInputMap );
