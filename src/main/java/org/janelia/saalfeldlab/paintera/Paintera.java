@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,6 +18,8 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsCmdLinePrompt;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -272,6 +275,18 @@ public class Paintera extends Application
 
 	public static void main( final String[] args )
 	{
+		if ( args.length > 0 && args[ 0 ].equalsIgnoreCase( "google" ) )
+		{
+			try
+			{
+				new GoogleCloudOAuth( new GoogleCloudClientSecretsCmdLinePrompt() );
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+
 		launch( args );
 	}
 
