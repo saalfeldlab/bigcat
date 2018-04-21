@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.awt.Insets;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -17,6 +20,8 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -38,6 +43,8 @@ import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 
 import bdv.fx.viewer.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
@@ -272,6 +279,120 @@ public class Paintera extends Application
 
 	public static void main( final String[] args )
 	{
+		if ( args.length > 0 && args[ 0 ].equalsIgnoreCase( "google" ) )
+		{
+			try
+			{
+				new GoogleCloudOAuth( new GoogleCloudClientSecretsPrompt() {
+
+					boolean ok;
+					final CountDownLatch latch = new CountDownLatch( 1 );
+
+					@Override
+					public GoogleClientSecrets prompt( final GoogleCloudClientSecretsPromptReason reason )
+							throws GoogleCloudSecretsPromptCanceledException
+					{
+						final java.awt.Frame frame = new java.awt.Frame( "Google Cloud Client Secrets" );
+						frame.setLayout( new java.awt.GridBagLayout() );
+						final java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
+
+						constraints.gridx = 0;
+						constraints.gridy = 0;
+						constraints.gridwidth = 7;
+						frame.add( new java.awt.Label( "Please provide your Google Cloud credentials:" ), constraints );
+
+						final java.awt.TextField clientIdText = new java.awt.TextField( 75 );
+						constraints.gridx = 0;
+						constraints.gridy = 1;
+						constraints.gridwidth = 1;
+						frame.add( new java.awt.Label( "Client ID" ), constraints );
+						constraints.gridx = 2;
+						constraints.gridy = 1;
+						constraints.gridwidth = 1;
+						constraints.insets = new Insets( 0, 0, 0, 8 );
+						frame.add( clientIdText, constraints );
+						constraints.insets = new Insets( 0, 0, 0, 0 );
+
+						constraints.gridx = 0;
+						constraints.gridy = 2;
+						constraints.gridwidth = 1;
+						frame.add( new java.awt.Label( "Client secret" ), constraints );
+						final java.awt.TextField clientSecretText = new java.awt.TextField( 75 );
+						constraints.gridx = 2;
+						constraints.gridy = 2;
+						constraints.gridwidth = 1;
+						constraints.insets = new Insets( 0, 0, 0, 8 );
+						frame.add( clientSecretText, constraints );
+						constraints.insets = new Insets( 0, 0, 0, 0 );
+
+						final java.awt.Panel buttonsPanel = new java.awt.Panel( new java.awt.FlowLayout() );
+						final java.awt.Button okButton = new java.awt.Button( "OK" );
+						buttonsPanel.add( okButton );
+						okButton.addActionListener( new java.awt.event.ActionListener()
+						{
+							@Override
+							public void actionPerformed( final java.awt.event.ActionEvent e )
+							{
+								ok = true;
+								frame.dispose();
+								latch.countDown();
+							}
+						} );
+
+						final java.awt.Button cancelButton = new java.awt.Button( "Cancel" );
+						buttonsPanel.add( cancelButton );
+						cancelButton.addActionListener( new java.awt.event.ActionListener()
+						{
+							@Override
+							public void actionPerformed( final java.awt.event.ActionEvent e )
+							{
+								ok = false;
+								frame.dispose();
+								latch.countDown();
+							}
+						} );
+
+						constraints.gridx = 0;
+						constraints.gridy = 3;
+						constraints.gridwidth = 7;
+						frame.add( buttonsPanel, constraints );
+
+						frame.addWindowListener( new java.awt.event.WindowAdapter()
+						{
+							@Override
+							public void windowClosing( final java.awt.event.WindowEvent e )
+							{
+								ok = false;
+								frame.dispose();
+								latch.countDown();
+							}
+						} );
+
+						frame.pack();
+						frame.setVisible( true );
+
+						try
+						{
+							latch.await();
+						}
+						catch ( final InterruptedException e )
+						{
+							e.printStackTrace();
+						}
+
+						if ( !ok )
+							throw new GoogleCloudSecretsPromptCanceledException();
+
+						return create( clientIdText.getText().trim(), clientSecretText.getText().trim() );
+					}
+				} );
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+
 		launch( args );
 	}
 
