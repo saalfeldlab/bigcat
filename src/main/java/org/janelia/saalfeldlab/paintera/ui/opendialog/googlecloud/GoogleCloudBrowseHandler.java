@@ -261,7 +261,7 @@ public class GoogleCloudBrowseHandler
 				}
 				final String id = idField.getText();
 				final String secret = secretField.getText();
-				return create( id, secret );
+				return create( id.trim(), secret.trim() );
 
 			} );
 
