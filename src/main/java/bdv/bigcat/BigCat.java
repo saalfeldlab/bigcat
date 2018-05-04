@@ -490,7 +490,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		/* override navigator z-step size with raw[ 0 ] z resolution */
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
-				raws.get( 0 ).getMipmapResolutions()[ 0 ],
+				labels.get( 0 ).getMipmapResolutions()[ 0 ],
 				config );
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
