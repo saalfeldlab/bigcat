@@ -65,7 +65,7 @@ public class TranslateZController
 		 */
 		new FixDistanceTranslateZ( 10 * min, "scroll browse z fast", "shift scroll" ).register();
 		new FixDistanceTranslateZ( max, "scroll browse z", "scroll" ).register();
-		new FixDistanceTranslateZ( min/f, "scroll browse z slow", "ctrl scroll" ).register();
+		new FixDistanceTranslateZ( min / 10, "scroll browse z slow", "ctrl scroll" ).register();
 	}
 
 
