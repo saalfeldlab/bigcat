@@ -1,5 +1,13 @@
 # BIGCAT (working title)
 
+## Install
+
+BigCAT is available on conda:
+```shell
+conda install -c hanslovsky bigcat
+```
+Alternatively, you can run the `install` script (Linux only).
+
 ## Compile
 
 To compile a "fat jar" with all dependencies added, run:
