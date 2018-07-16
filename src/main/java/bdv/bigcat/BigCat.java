@@ -196,8 +196,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		else
 		{
 			final long[] canvasDimensions;
-			if ( params.raws.size() > 0 )
-				canvasDimensions = AbstractH5SetupImageLoader.readDimension( reader, params.raws.get( 0 ) );
+			if ( params.labels.size() > 0 )
+				canvasDimensions = AbstractH5SetupImageLoader.readDimension( reader, params.labels.get( 0 ) );
 			else
 				canvasDimensions = maxRawDimensions;
 
