@@ -11,7 +11,7 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i <input_hdf_file>
+java -Xmx16G -jar target/bigcat-<VERSION>-jar-with-dependencies.jar -i <input_hdf_file> -l <label/dataset> -r <raw/dataset>
 ```
 
 ## Development
