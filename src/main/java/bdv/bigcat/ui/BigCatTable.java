@@ -60,6 +60,8 @@ public class BigCatTable extends JTable implements TableModelListener {
     @Override
     public void doLayout() {
     	
+		setPreferredColumnWidths();
+
         if (hasExcessWidth())
             autoResizeMode = AUTO_RESIZE_SUBSEQUENT_COLUMNS;
         
@@ -103,9 +105,6 @@ public class BigCatTable extends JTable implements TableModelListener {
 	@Override
 	public void tableChanged(TableModelEvent e) {
 		super.tableChanged(e);
-		
-		if (initialized)
-			setPreferredColumnWidths();
 	}
 
 	@Override
