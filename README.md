@@ -2,25 +2,43 @@
 
 ## Install
 
+### Install Script
+
+The `install` uses Maven to download and manage dependencies, compiles and installs BigCAT into the local Maven repository, and installs a start-script `bigcat` (tested on Linux and MacOS only, but can be reproduced on Windows with some manual tweaking).
+```shell
+./install $HOME/bin
+```
+
+Run the installed start-script
+```shell
+bigcat -i  <input_hdf_file> -l <label/dataset> -r <raw/dataset>
+```
+
+### Conda
+
 BigCAT is available on conda:
 ```shell
 conda install -c hanslovsky bigcat
 ```
-Alternatively, you can run the `install` script.
 
-## Compile
+Run instructions missing...
 
-To compile a "fat jar" with all dependencies added, run:
+### Fat JAR 
+
+To compile a "fat jar" with all dependencies included, run:
 
 ```shell
 mvn clean compile assembly:single
 ```
 
-## Run
-
+Run it
 ```shell
 java -Xmx16G -jar target/bigcat-<VERSION>-jar-with-dependencies.jar -i <input_hdf_file> -l <label/dataset> -r <raw/dataset>
 ```
+
+## Documentation
+
+Documentation is on the [Wiki](https://github.com/saalfeldlab/bigcat/wiki/BigCat-User-Interface).
 
 ## Development
 
