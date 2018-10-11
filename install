@@ -7,19 +7,32 @@ echo "Installing into $INSTALL_DIR"
 mvn clean install
 mvn -Dmdep.outputFile=cp.txt -Dmdep.includeScope=runtime dependency:build-classpath
 
-MEM=$(cat /proc/meminfo | grep MemTotal | sed s/^MemTotal:\\\s*\\\|\\\s\\+[^\\\s]*$//g)
-MEM=$(($MEM/2/1024/1024))
+# Use half of the available physical RAM.
+case "$(uname)" in
+'Linux')
+    MAX_MEM_BYTES="$(awk '/MemTotal/ {print 1024 * $2}' /proc/meminfo)"
+    ;;
+'Darwin')
+    MAX_MEM_BYTES="$(sysctl -n hw.memsize)"
+    ;;
+*)
+    echo 'WARNING: unknown OS, assuming 4 GB total physical RAM' 1>&2
+    MAX_MEM_BYTES="$(expr 4 '*' 1024 '*' 1024 '*' 1024)"
+    ;;
+esac
+MAX_MEM_BYTES="$(expr $MAX_MEM_BYTES / 2)"
 
-echo '#!/bin/bash' > bigcat
-echo '' >> bigcat
-echo 'JAR=$HOME/.m2/repository/sc/fiji/bigcat/0.0.4-SNAPSHOT/bigcat-0.0.4-SNAPSHOT.jar' >> bigcat
-echo 'java \' >> bigcat
-echo "  -Xmx${MEM}g \\" >> bigcat
-echo '  -XX:+UseConcMarkSweepGC \' >> bigcat
-echo -n '  -cp $JAR:' >> bigcat
-echo -n $(cat cp.txt) >> bigcat
-echo ' \' >> bigcat
-echo '  bdv.bigcat.BigCat $@' >> bigcat
+# Create a launch script.
+cat << EOF > bigcat
+#!/bin/bash
+
+JAR="\$HOME/.m2/repository/sc/fiji/bigcat/0.0.4-SNAPSHOT/bigcat-0.0.4-SNAPSHOT.jar"
+java \\
+  -Xmx$MAX_MEM_BYTES \\
+  -XX:+UseConcMarkSweepGC \\
+  -cp "\$JAR:$(cat cp.txt)" \\
+  bdv.bigcat.BigCat "\$@"
+EOF
 
 chmod a+x bigcat
 rm cp.txt
