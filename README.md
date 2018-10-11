@@ -6,7 +6,7 @@ BigCAT is available on conda:
 ```shell
 conda install -c hanslovsky bigcat
 ```
-Alternatively, you can run the `install` script (Linux only).
+Alternatively, you can run the `install` script.
 
 ## Compile
 
