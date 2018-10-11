@@ -4,7 +4,7 @@
 
 ### Install Script
 
-The `install` uses Maven to download and manage dependencies, compiles and installs BigCAT into the local Maven repository, and installs a start-script `bigcat` (tested on Linux and MacOS only, but can be reproduced on Windows with some manual tweaking).
+The `install` script uses Maven to download and manage dependencies, compiles and installs BigCAT into the local Maven repository, and installs a start-script `bigcat` (tested on Linux and MacOS only, but can be reproduced on Windows with some manual tweaking).
 ```shell
 ./install $HOME/bin
 ```
