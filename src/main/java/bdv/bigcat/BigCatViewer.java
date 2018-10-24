@@ -5,14 +5,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -48,36 +47,41 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 public class BigCatViewer< P extends BigCatViewer.Parameters >
 {
-	static public class Parameters
+	static public class Parameters implements Callable<Optional<Void>>
 	{
-		@Parameter( names = { "--infile", "-i" }, description = "Input file path" )
+		@Option( names = { "--infile", "-i" }, required = true, description = "Input file path" )
 		public String inFile = "";
 
-		@Parameter( names = { "--infilelabels", "-j" }, description = "Input file path for labels (if different from input file path for raw data)" )
+		@Option( names = { "--infilelabels", "-j" }, description = "Input file path for labels (if different from input file path for raw data)" )
 		public String inFileLabels = null;
 
-		@Parameter( names = { "--raw", "-r" }, description = "raw pixel datasets" )
+		@Option( names = { "--raw", "-r" }, description = "raw pixel datasets" )
 		public List< String > raws = new ArrayList<>();
 
-		@Parameter( names = { "--label", "-l" }, description = "label datasets" )
+		@Option( names = { "--label", "-l" }, description = "label datasets" )
 		public List< String > labels = new ArrayList<>();
 
-		@Parameter( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
+		@Option( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
 		public String assignment = "/fragment_segment_lut";
 
-		@Parameter( names = { "--complete", "-f" }, description = "complete segments" )
+		@Option( names = { "--complete", "-f" }, description = "complete segments" )
 		public String completeSegments = "/complete_segments";
 
-		public void init()
+		@Override
+		public Optional<Void> call()
 		{
 			if ( inFileLabels == null )
 				inFileLabels = inFile;
 
 			if ( inFile == null )
 				inFile = inFileLabels;
+
+			return Optional.empty();
 		}
 	}
 
@@ -118,8 +122,9 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-		new JCommander( params, args );
-		params.init();
+		if (CommandLine.call( params, args ) == null)
+			return;
+
 		final BigCatViewer< Parameters > bigCat = new BigCatViewer<>();
 		bigCat.init( params );
 		bigCat.setupBdv( params );

@@ -7,15 +7,13 @@ import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Optional;
 
 import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -58,27 +56,31 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 {
 	static public class Parameters extends BigCatViewer.Parameters
 	{
-		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
+		@Option( names = { "--canvas", "-c" }, description = "canvas dataset" )
 		public String canvas = "/volumes/labels/canvas";
 
-		@Parameter( names = { "--export", "-e" }, description = "export dataset" )
+		@Option( names = { "--export", "-e" }, description = "export dataset" )
 		public String export = "/volumes/labels/merged_ids";
 
-		@Parameter( names = { "--outfile", "-o" }, description = "Output file path" )
+		@Option( names = { "--outfile", "-o" }, description = "Output file path" )
 		public String outFile;
 
 		@Override
-		public void init()
+		public Optional<Void> call()
 		{
-			super.init();
+			super.call();
 
 			if ( outFile == null )
 				outFile = inFile;
+
+			return Optional.empty();
 		}
 	}
 
@@ -115,11 +117,12 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-		new JCommander( params, args );
-		params.init();
+		if (CommandLine.call( params, args ) == null)
+			return;
+
 		final BigCat< Parameters > bigCat = new BigCat<>();
-		bigCat.init( params );
-		bigCat.setupBdv( params );
+		bigCat.init(params);
+		bigCat.setupBdv(params);
 	}
 
 	public BigCat() throws Exception
@@ -490,7 +493,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		/* override navigator z-step size with raw[ 0 ] z resolution */
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
-				labels.get( 0 ).getMipmapResolutions()[ 0 ],
+				labels.size() > 0 ? labels.get( 0 ).getMipmapResolutions()[ 0 ] : raws.size() > 0 ? raws.get( 0 ).getMipmapResolutions()[ 0 ] : new double[] {1, 1, 1},
 				config );
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 

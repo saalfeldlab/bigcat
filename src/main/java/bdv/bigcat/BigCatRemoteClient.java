@@ -12,8 +12,6 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import org.zeromq.ZContext;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
 
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
@@ -47,12 +45,14 @@ import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 {
 	static public class Parameters extends BigCat.Parameters
 	{
-		@Parameter( names = { "--broker", "-b" }, description = "URL to configuration broker" )
+		@Option( names = { "--broker", "-b" }, description = "URL to configuration broker" )
 		public String config = "";
 
 		private Config brokerConfig;
@@ -71,8 +71,9 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-		new JCommander( params, args );
-		params.init();
+		if (CommandLine.call( params, args ) == null)
+			return;
+
 		params.loadConfig();
 		final BigCatRemoteClient bigCat = new BigCatRemoteClient();
 		bigCat.init( params );

@@ -10,9 +10,6 @@ import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
@@ -36,15 +33,17 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.view.Views;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 public class BigCatDvidViewer extends BigCatViewer< BigCatDvidViewer.Parameters >
 {
 	static public class Parameters extends BigCatViewer.Parameters
 	{
-		@Parameter( names = { "--url" }, description = "URL" )
+		@Option( names = { "--url" }, description = "URL" )
 		public String url = "";
 
-		@Parameter( names = { "--uuid" }, description = "UUID" )
+		@Option( names = { "--uuid" }, description = "UUID" )
 		public String uuid = "";
 
 		public Parameters()
@@ -53,7 +52,6 @@ public class BigCatDvidViewer extends BigCatViewer< BigCatDvidViewer.Parameters 
 			labels = null;
 			assignment = null;
 		}
-
 	}
 
 	/** raw pixels (image data) */
@@ -65,8 +63,8 @@ public class BigCatDvidViewer extends BigCatViewer< BigCatDvidViewer.Parameters 
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-		new JCommander( params, args );
-		params.init();
+		if (CommandLine.call( params, args ) == null)
+			return;
 		final BigCatDvidViewer bigCat = new BigCatDvidViewer();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
