@@ -4,7 +4,9 @@ INSTALL_DIR=${1:-$(pwd)}
 
 echo "Installing into $INSTALL_DIR"
 
-mvn clean install
+# mvn clean install
+# temporary workaround for openjdk plus surefire bug
+_JAVA_OPTIONS=-Djdk.net.URLClassPath.disableClassPathURLCheck=true mvn clean install
 mvn -Dmdep.outputFile=cp.txt -Dmdep.includeScope=runtime dependency:build-classpath
 
 # Use half of the available physical RAM.
