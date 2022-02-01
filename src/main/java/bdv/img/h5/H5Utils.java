@@ -1793,8 +1793,9 @@ public class H5Utils
 
 		// TODO Bug in JHDF5, does not save the value most of the time when
 		// using the non-deprecated method
-//		writer.uint64().setAttr( object, attribute, value );
-		writer.setLongAttribute( object, attribute, value );
+		writer.uint64().setAttr( object, attribute, value );
+		// The deprecated method no longer exists
+//		writer.setLongAttribute( object, attribute, value );
 //		writer.file().flush();
 	}
 
