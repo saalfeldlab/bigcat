@@ -18,6 +18,8 @@
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<scijava.jvm.build.version>1.8.0-101</scijava.jvm.build.version>
+		<cisd.jhdf5.version>19.04.0</cisd.jhdf5.version>
+		<org.apache.commons.version>3.12.0</org.apache.commons.version>
 	</properties>
 
 	<profiles>
@@ -48,6 +50,7 @@
 		<dependency>
 			<groupId>cisd</groupId>
 			<artifactId>jhdf5</artifactId>
+			<version>${cisd.jhdf5.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.sf.trove4j</groupId>
@@ -100,6 +103,11 @@
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
 			<version>3.5.2</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-lang3</artifactId>
+		    <version>${org.apache.commons.version}</version>
 		</dependency>
 	</dependencies>
 

@@ -8,7 +8,7 @@ import ch.systemsx.cisd.base.mdarray.MDLongArray;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
-import ncsa.hdf.hdf5lib.exceptions.HDF5SymbolTableException;
+import hdf.hdf5lib.exceptions.HDF5SymbolTableException;
 import net.imglib2.RealPoint;
 
 public class AnnotationsHdf5Store implements AnnotationsStore {
@@ -50,8 +50,8 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			fileFormat = 0.0;
 		}
 
-		if (reader.exists(groupname) && reader.hasAttribute(groupname, "offset")) {
-			final float[] data = reader.getFloatArrayAttribute(groupname, "offset");
+		if (reader.exists(groupname) && reader.object().hasAttribute(groupname, "offset")) {
+			final float[] data = reader.float32().getArrayAttr(groupname, "offset");
 			offset[0] = data[2];
 			offset[1] = data[1];
 			offset[2] = data[0];
@@ -321,26 +321,26 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 
 		// TODO: following calls are deprecated, but what to use instead?
 		try {
-			writer.createGroup(groupname);
+			writer.object().createGroup(groupname);
 		} catch (final HDF5SymbolTableException e) {
 			// already existed
 		}
 		try {
-			writer.createGroup(groupname + "/comments");
+			writer.object().createGroup(groupname + "/comments");
 		} catch (final HDF5SymbolTableException e) {
 			// already existed
 		}
 		try {
-			writer.createGroup(groupname + "/presynaptic_site");
+			writer.object().createGroup(groupname + "/presynaptic_site");
 		} catch (final HDF5SymbolTableException e) {
 			// already existed
 		}
 
 		writer.string().setAttr("/", "file_format", "0.2");
 
-		if (writer.hasAttribute(groupname, "offset")) {
+		if (writer.object().hasAttribute(groupname, "offset")) {
 			final float[] data = { offset[2], offset[1], offset[0] };
-			writer.setFloatArrayAttribute(groupname, "offset", data);
+			writer.float32().setArrayAttr(groupname, "offset", data);
 		}
 
 		writer.float32().writeMatrix(groupname + "/locations", crawler.locations);
