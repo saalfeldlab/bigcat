@@ -18,7 +18,7 @@
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<scijava.jvm.build.version>1.8.0-101</scijava.jvm.build.version>
-		<janelia-jhdf5.version>22.03.01-SNAPSHOT</janelia-jhdf5.version>
+		<janelia-jhdf5.version>26.10.0-SNAPSHOT</janelia-jhdf5.version>
 		<!-- TEMPORARY: remove the next two overrides once janelia-jhdf5 is released.
 		     pom-scijava manages older bytedeco versions; match what janelia-jhdf5 is built against. -->
 		<javacpp.version>1.5.15-SNAPSHOT</javacpp.version>
@@ -52,7 +52,7 @@
 			<artifactId>gson</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.scijava</groupId>
+			<groupId>org.janelia</groupId>
 			<artifactId>janelia-jhdf5</artifactId>
 			<version>${janelia-jhdf5.version}</version>
 		</dependency>
