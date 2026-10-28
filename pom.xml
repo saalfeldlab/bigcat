@@ -18,7 +18,11 @@
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<scijava.jvm.build.version>1.8.0-101</scijava.jvm.build.version>
-		<cisd.jhdf5.version>19.04.0</cisd.jhdf5.version>
+		<janelia-jhdf5.version>26.10.0-SNAPSHOT</janelia-jhdf5.version>
+		<!-- TEMPORARY: remove the next two overrides once janelia-jhdf5 is released.
+		     pom-scijava manages older bytedeco versions; match what janelia-jhdf5 is built against. -->
+		<javacpp.version>1.5.15-SNAPSHOT</javacpp.version>
+		<hdf5.version>2.2.0-${javacpp.version}</hdf5.version>
 		<org.apache.commons.version>3.12.0</org.apache.commons.version>
 	</properties>
 
@@ -48,9 +52,9 @@
 			<artifactId>gson</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>cisd</groupId>
-			<artifactId>jhdf5</artifactId>
-			<version>${cisd.jhdf5.version}</version>
+			<groupId>org.janelia</groupId>
+			<artifactId>janelia-jhdf5</artifactId>
+			<version>${janelia-jhdf5.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>net.sf.trove4j</groupId>
@@ -109,6 +113,12 @@
 		    <artifactId>commons-lang3</artifactId>
 		    <version>${org.apache.commons.version}</version>
 		</dependency>
+		<!-- hdf.hdf5lib.H5 (janelia-jhdf5) needs an slf4j binding at runtime; tests have none. -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-nop</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<developers>
@@ -148,6 +158,14 @@
 		<repository>
 			<id>imagej.public</id>
 			<url>https://maven.imagej.net/content/groups/public</url>
+		</repository>
+		<!-- TEMPORARY: org.bytedeco snapshots (javacpp, hdf5) needed by janelia-jhdf5 until they are
+		     released. Remove together with janelia-jhdf5's SNAPSHOT version. -->
+		<repository>
+			<id>central-portal-snapshots</id>
+			<url>https://central.sonatype.com/repository/maven-snapshots/</url>
+			<releases><enabled>false</enabled></releases>
+			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>	
 
